@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store/store.tsx';
-import { apiGet, apiSend } from '../lib/authClient.ts';
+import { apiGet, apiGetResult, apiSend, describeApiError } from '../lib/authClient.ts';
 import {
   AverageTrendChart,
   DimensionBarChart,
@@ -138,8 +138,15 @@ export default function AdminPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const o = await apiGet<Overview>('/api/v1/admin/overview');
-    if (!o) { setDenied(true); setLoading(false); return; }
+    const overviewResult = await apiGetResult<Overview>('/api/v1/admin/overview');
+    const o = overviewResult.data;
+    if (!o) {
+      setLoading(false);
+      // 403 走"无权限"页；其它错误（掉线/500）显示错误文案而不是伪装成无权限
+      if (overviewResult.error?.forbidden) setDenied(true);
+      else setMsg(describeApiError(overviewResult.error, '平台数据加载失败'));
+      return;
+    }
     setDenied(false);
     const [a, t, g, l, s, c, ai] = await Promise.all([
       apiGet<Paged<AccountRow>>(`/api/v1/admin/accounts?page=${accPage}&page_size=20`),

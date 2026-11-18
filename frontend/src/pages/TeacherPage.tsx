@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store/store.tsx';
-import { apiGet, apiSend } from '../lib/authClient.ts';
+import { apiGet, apiGetResult, apiSend, describeApiError } from '../lib/authClient.ts';
 import {
   AverageTrendChart,
   DimensionBarChart,
@@ -125,13 +125,15 @@ export default function TeacherPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [l, s, t] = await Promise.all([
-      apiGet<{ items: Learner[] }>('/api/v1/teacher/learners'),
-      apiGet<ClassStats>('/api/v1/teacher/stats'),
-      apiGet<ClassTrend>('/api/v1/teacher/trend'),
+    const [lr, sr, tr] = await Promise.all([
+      apiGetResult<{ items: Learner[] }>('/api/v1/teacher/learners'),
+      apiGetResult<ClassStats>('/api/v1/teacher/stats'),
+      apiGetResult<ClassTrend>('/api/v1/teacher/trend'),
     ]);
-    if (!l && !s) setErr('无法读取班级数据，请确认已用教师或管理员账号登录');
-    else setErr('');
+    const l = lr.data; const s = sr.data; const t = tr.data;
+    // 用结构化错误给出准确提示：无权限 / 掉线 / 服务异常，三种情况文案不同
+    const firstError = lr.error ?? sr.error ?? tr.error;
+    setErr(firstError ? describeApiError(firstError, '班级数据加载失败') : '');
     const items = l?.items ?? [];
     setLearners(items);
     setStats(s ?? null);

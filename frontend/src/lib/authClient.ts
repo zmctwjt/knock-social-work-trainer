@@ -173,10 +173,62 @@ export async function refresh(): Promise<boolean> {
 }
 
 /** 带鉴权的 GET/POST 封装，供教师端与管理端页面复用。 */
-export async function apiGet<T>(path: string): Promise<T | null> {
+/** 接口失败的结构化错误，供页面区分"没数据"与"请求失败"。 */
+export interface ApiError {
+  status: number;
+  message: string;
+  /** 401 已清理登录态，调用方应跳登录页 */
+  unauthorized: boolean;
+  /** 403 越权：页面应提示"无权限"而不是"加载失败" */
+  forbidden: boolean;
+  /** 网络不可达（后端没起 / 断网） */
+  offline: boolean;
+}
+
+export interface ApiResult<T> {
+  ok: boolean;
+  data: T | null;
+  error: ApiError | null;
+}
+
+function toApiError(r: { status: number; msg?: string }): ApiError {
+  return {
+    status: r.status,
+    message: r.msg || `请求失败（HTTP ${r.status}）`,
+    unauthorized: r.status === 401,
+    forbidden: r.status === 403,
+    offline: r.status === 0,
+  };
+}
+
+/**
+ * 带错误信息的 GET。
+ *
+ * 相比直接返回 null，调用方现在能区分三种情况：
+ * 成功但无数据（data 有值为空数组）、无权限（403）、网络失败（offline）。
+ * 这三种在界面上应给不同提示，否则用户看到"暂无数据"会以为是系统坏了。
+ */
+export async function apiGetResult<T>(path: string): Promise<ApiResult<T>> {
   const r = await request<T>(path);
   if (!r.ok && r.status === 401) clearSession();
-  return r.ok ? (r.body as T) : null;
+  if (r.ok) return { ok: true, data: r.body as T, error: null };
+  return { ok: false, data: null, error: toApiError(r) };
+}
+
+/** 兼容旧调用：只关心数据，失败返回 null。新代码建议用 apiGetResult。 */
+export async function apiGet<T>(path: string): Promise<T | null> {
+  const r = await apiGetResult<T>(path);
+  return r.data;
+}
+
+/** 把 ApiError 转成给用户看的文案，避免各处重复写判断。 */
+export function describeApiError(err: ApiError | null, fallback = '加载失败'): string {
+  if (!err) return fallback;
+  if (err.offline) return '无法连接服务器，请确认后端已启动';
+  if (err.unauthorized) return '登录已过期，请重新登录';
+  if (err.forbidden) return '当前角色无权查看这部分数据';
+  if (err.status >= 500) return '服务端异常，请稍后重试或联系管理员';
+  return err.message || fallback;
 }
 
 export async function apiSend<T>(
