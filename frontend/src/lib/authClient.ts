@@ -17,6 +17,9 @@ const K_REFRESH = 'knock.auth.refresh';
 const K_USER = 'knock.auth.user';
 const K_MODE = 'knock.auth.mode'; // 'server' | 'local'
 
+/** 默认请求超时。AI 类接口在服务端自带 45s 预算，这里留 60s 兜底。 */
+const DEFAULT_TIMEOUT_MS = 60_000;
+
 export type Role = 'student' | 'teacher' | 'admin' | 'guest';
 
 export interface AuthUser {
@@ -89,8 +92,18 @@ async function request<T>(
   };
   const token = accessToken();
   if (token) headers.Authorization = `Bearer ${token}`;
+
+  // 超时控制：没有它时后端无响应会让页面一直转圈，用户只能刷新。
+  // 用 AbortController 而不是 Promise.race —— 前者能真正取消底层请求。
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+
   try {
-    const resp = await fetch(`${API_BASE}${path}`, { ...init, headers });
+    const resp = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers,
+      signal: controller.signal,
+    });
     const text = await resp.text();
     let body: unknown = null;
     try {
@@ -110,7 +123,13 @@ async function request<T>(
     }
     return { ok: true, status: resp.status, body: envelope?.data as T };
   } catch (err) {
+    // AbortError 表示超时被主动取消，与"网络不可达"是两类问题
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      return { ok: false, status: 0, msg: '请求超时，请稍后重试' };
+    }
     return { ok: false, status: 0, msg: err instanceof Error ? err.message : '网络错误' };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
