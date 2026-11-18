@@ -168,7 +168,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     install_exception_handlers(app)
 
-    # add_middleware 后加的先执行：最终外→内为 CORS → TrustedHost → RequestContext → BodyLimit
+    # 响应压缩。实测发现此前完全没有 gzip：首屏 9 个请求传输 753 KB，
+    # 与解压后体积几乎相同（等于没压）。静态产物是文本（JS/CSS/HTML），
+    # 压缩后通常只剩 1/4，这是最容易拿到的性能改善。
+    # GZip 必须放在最外层（最后 add），否则内层早退的响应（如 304、错误）
+    # 会绕过压缩；同时它只处理 Content-Length >= minimum_size 的响应。
+    from starlette.middleware.gzip import GZipMiddleware
+
+    # add_middleware 后加的先执行：最终外→内为 GZip → CORS → TrustedHost
+    # → RequestContext → BodyLimit
     app.add_middleware(BodyLimitMiddleware, limit_bytes=cfg.body_limit_bytes)
     app.add_middleware(RequestContextMiddleware, settings=cfg)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=cfg.allowed_host_list)
@@ -183,6 +191,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         expose_headers=["X-Request-ID"],
         max_age=600,
     )
+    # 最后添加 = 最外层，确保所有响应（含静态资源与错误响应）都经过压缩
+    app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=6)
 
     app.include_router(health_router)
     app.include_router(api_router, prefix=cfg.api_v1_prefix)
