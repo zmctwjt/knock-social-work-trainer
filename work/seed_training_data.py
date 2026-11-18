@@ -15,7 +15,7 @@ import random
 import sys
 from pathlib import Path
 
-BACKEND = Path(r"F:\毕业设计\deliverables\backend")
+BACKEND = Path(__file__).resolve().parent.parent / "deliverables" / "backend"
 sys.path.insert(0, str(BACKEND))
 os.chdir(BACKEND)
 

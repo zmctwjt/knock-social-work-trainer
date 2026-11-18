@@ -41,7 +41,7 @@ async def ensure_accounts() -> None:
     import sys as _sys
     from pathlib import Path
 
-    backend = Path(r"F:\毕业设计\deliverables\backend")
+    backend = Path(__file__).resolve().parent.parent / "deliverables" / "backend"
     _sys.path.insert(0, str(backend))
     os.chdir(backend)
 

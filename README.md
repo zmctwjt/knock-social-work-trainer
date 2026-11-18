@@ -232,8 +232,17 @@ python work/audit_mobile.py          # 移动端 390px 无横向溢出
 python work/audit_confirm.py         # 危险操作二次确认
 ```
 
-CI（`.github/workflows/ci.yml`）在每次推送时运行三个 job：
-后端测试 + 真实 MySQL 迁移、前端类型检查与构建、密钥扫描与依赖漏洞扫描。
+CI（`.github/workflows/ci.yml`）在每次推送时运行四个 job：
+
+| job | 内容 |
+| --- | --- |
+| backend | pytest（SQLite）+ 在真实 MySQL 8.0 上执行迁移与 `alembic check` |
+| frontend | tsc 类型检查 + vite 构建 + 校验图表库未进首屏 |
+| **e2e** | 真实 MySQL + 无头 Chrome，跑 10 个端到端审查脚本 |
+| security | 密钥误提交扫描 + pip-audit 依赖漏洞 |
+
+端到端审查脚本可通过环境变量适配不同平台：
+`UI_BASE`（服务地址）、`CHROME_PATH`（浏览器路径）、`CDP_PORT`、`QA_DIR`（截图目录）。
 
 ---
 
