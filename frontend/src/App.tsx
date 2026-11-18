@@ -154,13 +154,21 @@ function Shell({ children }: { children: React.ReactNode }) {
           )}
           <AccountChip />
         </div>
-        <nav className="viewtabs" role="tablist" aria-label="页面切换">
+        {/* 顶栏是页面间导航，不是页内标签组：
+            用 role=tablist/tab 属 ARIA 误用（tabs 语义要求同页切换 tabpanel），
+            读屏会念成"标签 3/9"，与真实行为不符。改为普通 nav + aria-current。 */}
+        <nav className="viewtabs" aria-label="主导航">
           {navItemsFor(role).map((t) => (
-            <NavLink key={t.to} to={t.to} end={t.to === '/'} style={{ textDecoration: 'none' }}>
+            <NavLink
+              key={t.to}
+              to={t.to}
+              end={t.to === '/'}
+              style={{ textDecoration: 'none' }}
+            >
               {({ isActive }) => (
-                <button className="viewtab" role="tab" aria-selected={isActive} type="button">
+                <span className="viewtab" aria-current={isActive ? 'page' : undefined}>
                   <span className="no">{t.no}</span>{t.label}
-                </button>
+                </span>
               )}
             </NavLink>
           ))}

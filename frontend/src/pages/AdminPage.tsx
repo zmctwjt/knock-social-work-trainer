@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store/store.tsx';
 import { apiGet, apiGetResult, apiSend, describeApiError } from '../lib/authClient.ts';
+import { useTabKeys } from '../lib/useTabKeys.ts';
 import { ConfirmDialog, type ConfirmOptions } from '../components/ConfirmDialog.tsx';
 import {
   AverageTrendChart,
@@ -104,6 +105,7 @@ export default function AdminPage() {
   const nav = useNavigate();
   const { account, role } = useStore();
   const [tab, setTab] = useState<Tab>('运行概览');
+  const onTabKeyDown = useTabKeys(TABS, tab, setTab);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
   const [accMeta, setAccMeta] = useState({ total: 0, pages: 0 });
@@ -410,14 +412,18 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <div className="wb-tabs" role="tablist">
+        <div className="wb-tabs" role="tablist" aria-label="管理后台视图"
+          onKeyDown={onTabKeyDown}>
           {TABS.map((t) => (
             <button
               key={t.key}
               type="button"
               role="tab"
-              className="wb-tab"
+              id={`tab-${t.key}`}
+              aria-controls="panel-admin"
               aria-selected={tab === t.key}
+              tabIndex={tab === t.key ? 0 : -1}
+              className="wb-tab"
               onClick={() => setTab(t.key)}
             >
               <span className="no">{t.no}</span>
@@ -430,6 +436,7 @@ export default function AdminPage() {
         {loading && <div className="wb-alert info">正在读取平台数据…</div>}
 
         {/* ── 01 运行概览 ── */}
+        <div role="tabpanel" id="panel-admin" aria-labelledby={`tab-${tab}`}>
         {tab === '运行概览' && overview && (
           <>
             <div className="wb-metrics">
@@ -1002,6 +1009,7 @@ export default function AdminPage() {
             ))}
           </div>
         )}
+        </div>
       </div>
 
       <ConfirmDialog

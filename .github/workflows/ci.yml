@@ -195,7 +195,7 @@ jobs:
       - name: 浏览器审查（界面 / 角色 / 移动端 / 点评闭环）
         run: |
           set -e
-          for s in audit_training_flow audit_role_landing audit_workbench_ui audit_mobile audit_knowledge audit_confirm audit_comment_ui; do
+          for s in audit_training_flow audit_a11y audit_role_landing audit_workbench_ui audit_mobile audit_knowledge audit_confirm audit_comment_ui; do
             echo "::group::$s"
             python work/$s.py
             echo "::endgroup::"

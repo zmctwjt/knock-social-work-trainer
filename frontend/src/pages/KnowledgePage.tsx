@@ -10,10 +10,17 @@ import { useNavigate } from 'react-router-dom';
 import { SKILL_CARDS, ETHICS } from '../data/knowledge.ts';
 import { DIMENSIONS } from '../services/scoring.ts';
 import { SCENARIOS } from '../data/scenarios.ts';
+import { useTabKeys } from '../lib/useTabKeys.ts';
 
 export default function KnowledgePage() {
   const nav = useNavigate();
   const [tab, setTab] = useState<'skill' | 'ethic'>('skill');
+  // 知识库只有两个标签，仍按 WAI-ARIA tabs 模式支持方向键切换
+  const onTabKeyDown = useTabKeys(
+    [{ key: 'skill' as const }, { key: 'ethic' as const }],
+    tab,
+    setTab,
+  );
   const [q, setQ] = useState('');
   const [scenarioId, setScenarioId] = useState('');
   const [dimension, setDimension] = useState('');
@@ -102,19 +109,25 @@ export default function KnowledgePage() {
         )}
       </div>
 
-      <div className="kb-tabs" role="tablist" aria-label="知识库分类">
-        <button className="kb-tab" role="tab" aria-selected={tab === 'skill'}
+      <div className="kb-tabs" role="tablist" aria-label="知识库分类"
+        onKeyDown={onTabKeyDown}>
+        <button className="kb-tab" role="tab" id="tab-skill"
+          aria-controls="panel-kb" aria-selected={tab === 'skill'}
+          tabIndex={tab === 'skill' ? 0 : -1}
           onClick={() => setTab('skill')}>
           面谈技巧卡（{skills.length}）
         </button>
-        <button className="kb-tab" role="tab" aria-selected={tab === 'ethic'}
+        <button className="kb-tab" role="tab" id="tab-ethic"
+          aria-controls="panel-kb" aria-selected={tab === 'ethic'}
+          tabIndex={tab === 'ethic' ? 0 : -1}
           onClick={() => setTab('ethic')}>
           伦理守则速查（{ethics.length}）
         </button>
       </div>
 
       {tab === 'skill' && (
-        <div className="kb-panel on">
+        <div className="kb-panel on" role="tabpanel" id="panel-kb"
+          aria-labelledby="tab-skill">
           <div className="kb-grid">
             {skills.length === 0 && (
               <div className="kb-empty">
@@ -157,7 +170,8 @@ export default function KnowledgePage() {
       )}
 
       {tab === 'ethic' && (
-        <div className="kb-panel on">
+        <div className="kb-panel on" role="tabpanel" id="panel-kb"
+          aria-labelledby="tab-ethic">
           <div className="ethic-grid">
             {ethics.length === 0 && (
               <div className="kb-empty">

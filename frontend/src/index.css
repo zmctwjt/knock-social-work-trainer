@@ -80,10 +80,11 @@ button{font-family:inherit}
   border-bottom:2px solid transparent;transition:color var(--t-fast) ease,
     border-color var(--t-fast) ease}
 .viewtab:hover{color:var(--ink)}
-.viewtab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--proof);font-weight:500}
+/* 顶栏用 aria-current="page" 表示当前页（原 aria-selected 属 tab 语义误用） */
+.viewtab[aria-current="page"]{color:var(--ink);border-bottom-color:var(--proof);font-weight:500}
 .viewtab .no{font-family:var(--mono);font-size:10px;letter-spacing:.1em;
   color:var(--ink-3);margin-right:7px}
-.viewtab[aria-selected="true"] .no{color:var(--proof)}
+.viewtab[aria-current="page"] .no{color:var(--proof)}
 .rule-thick{height:3px;background:var(--ink)}
 .rule-thin{height:1px;background:var(--rule)}
 

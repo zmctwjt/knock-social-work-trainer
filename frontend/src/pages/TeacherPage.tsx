@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store/store.tsx';
 import { apiGet, apiGetResult, apiSend, describeApiError } from '../lib/authClient.ts';
+import { useTabKeys } from '../lib/useTabKeys.ts';
 import {
   AverageTrendChart,
   DimensionBarChart,
@@ -94,6 +95,7 @@ export default function TeacherPage() {
   const nav = useNavigate();
   const { account, role } = useStore();
   const [tab, setTab] = useState<Tab>('班级总览');
+  const onTabKeyDown = useTabKeys(TABS, tab, setTab);
   const [learners, setLearners] = useState<Learner[]>([]);
   const [stats, setStats] = useState<ClassStats | null>(null);
   const [trend, setTrend] = useState<ClassTrend | null>(null);
@@ -271,14 +273,18 @@ export default function TeacherPage() {
         </div>
 
         {/* 视图切换 */}
-        <div className="wb-tabs" role="tablist">
+        <div className="wb-tabs" role="tablist" aria-label="教师工作台视图"
+          onKeyDown={onTabKeyDown}>
           {TABS.map((t) => (
             <button
               key={t.key}
               type="button"
               role="tab"
-              className="wb-tab"
+              id={`tab-${t.key}`}
+              aria-controls="panel-teacher"
               aria-selected={tab === t.key}
+              tabIndex={tab === t.key ? 0 : -1}
+              className="wb-tab"
               onClick={() => setTab(t.key)}
             >
               <span className="no">{t.no}</span>
@@ -302,6 +308,7 @@ export default function TeacherPage() {
         {loading && <div className="wb-alert info">正在读取班级数据…</div>}
 
         {/* ── 01 班级总览 ── */}
+        <div role="tabpanel" id="panel-teacher" aria-labelledby={`tab-${tab}`}>
         {tab === '班级总览' && (
           <>
             {stats && (
@@ -663,6 +670,7 @@ export default function TeacherPage() {
             ))}
           </div>
         )}
+        </div>
       </div>
     </div>
   );

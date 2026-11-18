@@ -179,6 +179,16 @@ npm run build        # 产物由后端托管，单端口 8000 即可访问
 命中危机表述由本地硬规则短路，不构造任何提示词、不进入模型调用。
 单元测试以 mock 断言 `provider.calls == []` 来证伪"漏调模型"。
 
+### 键盘可达与语义正确
+
+工作台与知识库的标签组按 WAI-ARIA tabs 模式实现：`role=tablist/tab/tabpanel`
+三者通过 `id ↔ aria-controls ↔ aria-labelledby` 关联，非选中标签
+`tabIndex=-1`（否则键盘用户要被逐个标签卡住），支持 ←/→/Home/End。
+用 CDP 派发真实按键事件验证，不是 JS 合成事件。
+
+顶栏从 `role=tablist` 改为普通 `<nav>` + `aria-current="page"`：
+它是页面间跳转，不是页内标签，用 tab 语义会让读屏念成"标签 3/9"。
+
 ### 前端不白屏
 
 路由内容外挂 `ErrorBoundary`：任一页面在渲染期抛异常时显示可读错误页并给出
@@ -237,6 +247,7 @@ python work/audit_comments.py        # 教师点评权限与流程
 python work/audit_comment_ui.py      # 点评端到端闭环（教师发布→学生可见）
 python work/audit_knowledge.py       # 知识库按案例 + 关键词检索
 python work/audit_training_flow.py   # 核心训练流程（输入→评分→结算→成长→危机处置）
+python work/audit_a11y.py            # 标签页 ARIA 关联与键盘导航
 python work/audit_mobile.py          # 移动端 390px 无横向溢出
 python work/audit_confirm.py         # 危险操作二次确认
 ```
@@ -247,7 +258,7 @@ CI（`.github/workflows/ci.yml`）在每次推送时运行四个 job：
 | --- | --- |
 | backend | pytest（SQLite）+ 在真实 MySQL 8.0 上执行迁移与 `alembic check` |
 | frontend | tsc 类型检查 + vite 构建 + 校验图表库未进首屏 |
-| **e2e** | 真实 MySQL + 无头 Chrome，跑 11 个端到端审查脚本 |
+| **e2e** | 真实 MySQL + 无头 Chrome，跑 12 个端到端审查脚本 |
 | security | 密钥误提交扫描 + pip-audit 依赖漏洞 |
 
 **测试分布**（18 个模块 / 161 个测试函数，pytest 收集 162 项——含 1 个参数化展开）：
