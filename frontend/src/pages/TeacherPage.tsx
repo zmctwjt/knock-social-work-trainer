@@ -362,8 +362,15 @@ export default function TeacherPage() {
                   </div>
                   <div className="wb-metric">
                     <div className="k">累计时长</div>
-                    <div className="n">{detail.total_minutes}</div>
-                    <div className="d">分钟</div>
+                    <div className="n">
+                      {detail.total_minutes}
+                      <span style={{ fontSize: 13, marginLeft: 3,
+                        color: 'var(--ink-3)' }}>分</span>
+                    </div>
+                    <div className="d">平均每次{' '}
+                      {detail.sessions
+                        ? Math.round(detail.total_minutes / detail.sessions)
+                        : 0} 分钟</div>
                   </div>
                   <div className="wb-metric">
                     <div className="k">最薄弱</div>
