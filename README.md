@@ -236,6 +236,7 @@ python work/audit_confirm.py         # 危险操作二次确认
 python work/audit_comments.py        # 教师点评权限与流程
 python work/audit_comment_ui.py      # 点评端到端闭环（教师发布→学生可见）
 python work/audit_knowledge.py       # 知识库按案例 + 关键词检索
+python work/audit_training_flow.py   # 核心训练流程（输入→评分→结算→成长→危机处置）
 python work/audit_mobile.py          # 移动端 390px 无横向溢出
 python work/audit_confirm.py         # 危险操作二次确认
 ```
@@ -246,7 +247,7 @@ CI（`.github/workflows/ci.yml`）在每次推送时运行四个 job：
 | --- | --- |
 | backend | pytest（SQLite）+ 在真实 MySQL 8.0 上执行迁移与 `alembic check` |
 | frontend | tsc 类型检查 + vite 构建 + 校验图表库未进首屏 |
-| **e2e** | 真实 MySQL + 无头 Chrome，跑 10 个端到端审查脚本 |
+| **e2e** | 真实 MySQL + 无头 Chrome，跑 11 个端到端审查脚本 |
 | security | 密钥误提交扫描 + pip-audit 依赖漏洞 |
 
 **测试分布**（18 个模块 / 161 个测试函数，pytest 收集 162 项——含 1 个参数化展开）：
