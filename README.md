@@ -58,7 +58,7 @@
 | 鉴权 | PyJWT（access/refresh）+ Argon2id 口令哈希 + RBAC 四角色 |
 | AI | httpx 自建网关对接智谱 GLM-4.7-Flash（含降级链） |
 | 观测 | structlog · Prometheus · OpenTelemetry（可选） |
-| 测试 | pytest（167 用例）+ 10 个端到端审查脚本 |
+| 测试 | pytest（162 用例）+ 10 个端到端审查脚本 |
 
 ---
 
