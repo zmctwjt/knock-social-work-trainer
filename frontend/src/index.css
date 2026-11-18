@@ -2897,3 +2897,16 @@ button:active:not(:disabled){transform:translateY(1px) scale(.985)}
   .kb-filters select{width:100%;min-width:0}
   .kb-reset{flex:1 1 100%}
 }
+
+/* 整宽面板里的热力图：默认 19px 格子只占约 400px，右侧大片留白显得稀疏，
+   放大到 26px 并把列间距拉开，填满面板宽度。仅用于管理端平台趋势。 */
+.heat-lg .heat-cells{grid-template-rows:repeat(7,26px);gap:6px}
+.heat-lg .heat-days{grid-template-rows:repeat(7,26px);gap:6px}
+.heat-lg .heat-days span{height:26px;line-height:26px;font-size:10.5px}
+.heat-lg .hc{width:26px;height:26px;border-radius:4px}
+@media (max-width:900px){
+  .heat-lg .heat-cells{grid-template-rows:repeat(7,18px);gap:4px}
+  .heat-lg .heat-days{grid-template-rows:repeat(7,18px);gap:4px}
+  .heat-lg .heat-days span{height:18px;line-height:18px}
+  .heat-lg .hc{width:18px;height:18px}
+}

@@ -69,6 +69,13 @@ interface AuditRow {
   summary: string; created_at: string | null;
 }
 
+interface HeatCell { date: string; count: number; level: number }
+interface HeatmapData {
+  weeks: number; start: string; end: string;
+  cells: HeatCell[]; total: number; active_days: number;
+  total_days: number; thresholds: number[]; max_daily: number;
+}
+
 interface AiLogList {
   items: AiLog[]; total: number; all_total: number;
   success_rate: number; avg_latency_ms: number;
@@ -109,6 +116,7 @@ export default function AdminPage() {
   const [cards, setCards] = useState<CardRow[]>([]);
   const [aiLogs, setAiLogs] = useState<AiLogList | null>(null);
   const [audits, setAudits] = useState<AuditRow[]>([]);
+  const [heat, setHeat] = useState<HeatmapData | null>(null);
   const [msg, setMsg] = useState('');
   const [msgKind, setMsgKind] = useState<'ok' | 'err'>('ok');
   const [denied, setDenied] = useState(false);
@@ -165,6 +173,9 @@ export default function AdminPage() {
     ]);
     void apiGet<{ items: AuditRow[] }>('/api/v1/admin/audit-logs?limit=100').then((r) => {
       setAudits(r?.items ?? []);
+    });
+    void apiGet<HeatmapData>('/api/v1/admin/heatmap?weeks=18').then((r) => {
+      setHeat(r ?? null);
     });
     setOverview(o);
     setAccounts(a?.items ?? []);
@@ -657,6 +668,46 @@ export default function AdminPage() {
               </div>
               <AverageTrendChart points={trend.points} height={300} />
             </div>
+
+            {heat && (
+              <div className="wb-panel">
+                <div className="wb-panel-h">
+                  <span>训练频率热力图</span>
+                  <span className="hint">
+                    近 {heat.weeks} 周 · {heat.total} 次训练 ·{' '}
+                    {heat.active_days}/{heat.total_days} 天有训练
+                  </span>
+                </div>
+                <div className="heat-wrap heat-lg">
+                  <div className="heat-days">
+                    {['一', '', '三', '', '五', '', '日'].map((d, i) => (
+                      <span key={i}>{d}</span>
+                    ))}
+                  </div>
+                  <div className="heat-cells">
+                    {heat.cells.map((c) => (
+                      <span
+                        key={c.date}
+                        className={'hc' + (c.level > 0 ? ' l' + c.level : '')}
+                        title={`${c.date} · ${c.count} 次训练`}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div className="heat-legend">
+                  <span>少</span>
+                  <i style={{ background: '#EFE9DE' }} />
+                  <i style={{ background: '#C6D9CB' }} />
+                  <i style={{ background: '#8FBAA0' }} />
+                  <i style={{ background: '#4E8A6B' }} />
+                  <i style={{ background: '#2F5D50' }} />
+                  <span>多</span>
+                  <span style={{ marginLeft: 14, color: 'var(--ink-4)' }}>
+                    单日最多 {heat.max_daily} 次
+                  </span>
+                </div>
+              </div>
+            )}
 
             <div className="wb-grid">
               <div className="wb-panel">

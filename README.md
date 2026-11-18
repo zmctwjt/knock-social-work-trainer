@@ -40,7 +40,7 @@
 | --- | --- |
 | 运行概览 | 账号/会话/记录统计、AI 服务状态、调用成功率与延迟 |
 | 账号管理 | 教务导入建号（三角色）、搜索筛选、批量启用停用 |
-| 平台趋势 | 30 天均分趋势、六维均值、角色分布、案例热度 |
+| 平台趋势 | 30 天均分趋势、**平台训练热力图**、六维均值、角色分布、案例热度 |
 | 内容维护 | 案例与技巧卡的新增、编辑、下架、删除 |
 | 判定词表 | 九个词表分组维护，危机组受保护（禁止禁用） |
 | 台词节点 | 按情绪档与角色维护服务对象台词 |
@@ -58,7 +58,7 @@
 | 鉴权 | PyJWT（access/refresh）+ Argon2id 口令哈希 + RBAC 四角色 |
 | AI | httpx 自建网关对接智谱 GLM-4.7-Flash（含降级链） |
 | 观测 | structlog · Prometheus · OpenTelemetry（可选） |
-| 测试 | pytest（157 用例）+ 9 个端到端审查脚本 |
+| 测试 | pytest（162 用例）+ 10 个端到端审查脚本 |
 
 ---
 
@@ -210,6 +210,7 @@ python work/audit_workbench_ui.py    # 教师/管理页全部标签页渲染
 python work/audit_confirm.py         # 危险操作二次确认
 python work/audit_comments.py        # 教师点评权限与流程
 python work/audit_comment_ui.py      # 点评端到端闭环（教师发布→学生可见）
+python work/audit_knowledge.py       # 知识库按案例 + 关键词检索
 python work/audit_mobile.py          # 移动端 390px 无横向溢出
 python work/audit_confirm.py         # 危险操作二次确认
 ```
@@ -234,6 +235,7 @@ CI（`.github/workflows/ci.yml`）在每次推送时运行三个 job：
 | 点评 | `/api/v1/teacher/comments`（写/删）、`/api/v1/comments/{mine,unread}` |
 | 导出 | `/api/v1/teacher/export.csv` |
 | 审计 | `/api/v1/admin/audit-logs` |
+| 热力图 | `/api/v1/stats/heatmap`（个人）、`/api/v1/admin/heatmap`（平台） |
 
 完整清单见 `docs/design/附录A_API接口清单.md`，或在服务运行时访问 `/docs`。
 

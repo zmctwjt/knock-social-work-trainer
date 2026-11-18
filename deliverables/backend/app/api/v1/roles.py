@@ -500,3 +500,8 @@ async def admin_audit_logs(
             session, limit=limit, action=action
         )
     )
+
+
+@admin_router.get("/heatmap", summary="平台训练热力图")
+async def admin_heatmap(account: CurrentUser, session: SessionDep, weeks: int = 18):
+    return ok(await analytics_service.admin_heatmap(session, weeks=weeks))

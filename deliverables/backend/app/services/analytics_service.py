@@ -333,3 +333,85 @@ def _q(value: object) -> str:
     if any(ch in text for ch in ',"\n\r'):
         return '"' + text.replace('"', '""') + '"'
     return text
+
+
+# ═══════════════════════════════════════════════════════════
+# 平台训练热力图
+# ═══════════════════════════════════════════════════════════
+
+
+async def admin_heatmap(
+    session: AsyncSession, *, weeks: int = 18
+) -> dict[str, object]:
+    """全平台训练热力图。
+
+    与学生端热力图的区别：学生单日最多几次，固定阈值（1/3/6）够用；
+    平台级每天可能是几十上百次，固定阈值会全部顶格，失去区分度。
+    因此这里按**分位数自适应**分档：把非零日按数量排序后四等分。
+    """
+    weeks = max(4, min(weeks, 52))
+    today = datetime.now(UTC).date()
+    # 对齐到本周一，保证每列是完整的一周
+    monday = today - timedelta(days=today.weekday())
+    start = monday - timedelta(weeks=weeks - 1)
+    total_days = (today - start).days + 1
+
+    rows = (
+        await session.execute(
+            select(TrainingRecord.created_at).where(
+                TrainingRecord.created_at >= datetime.combine(start, datetime.min.time())
+            )
+        )
+    ).scalars().all()
+
+    counts: dict[date, int] = defaultdict(int)
+    for created_at in rows:
+        if created_at is None:
+            continue
+        day = created_at.astimezone(UTC).date() if created_at.tzinfo else created_at.date()
+        counts[day] += 1
+
+    # 分位阈值：只对非零日排序，0 值不参与
+    nonzero = sorted(v for v in counts.values() if v > 0)
+    if nonzero:
+        def _q(ratio: float) -> int:
+            idx = min(len(nonzero) - 1, int(len(nonzero) * ratio))
+            return nonzero[idx]
+
+        t1, t2, t3 = _q(0.25), _q(0.50), _q(0.75)
+    else:
+        t1 = t2 = t3 = 0
+
+    def level(count: int) -> int:
+        if count <= 0:
+            return 0
+        if count <= t1:
+            return 1
+        if count <= t2:
+            return 2
+        if count <= t3:
+            return 3
+        return 4
+
+    cells: list[dict[str, object]] = []
+    cursor = start
+    while cursor <= today:
+        count = counts.get(cursor, 0)
+        cells.append(
+            {"date": cursor.isoformat(), "count": count, "level": level(count)}
+        )
+        cursor += timedelta(days=1)
+
+    active_days = sum(1 for c in cells if c["count"] > 0)
+    return {
+        "weeks": weeks,
+        "start": start.isoformat(),
+        "end": today.isoformat(),
+        "cells": cells,
+        "total": sum(counts.values()),
+        "active_days": active_days,
+        "total_days": total_days,
+        # 便于前端画图例
+        "thresholds": [t1, t2, t3],
+        "max_daily": max(counts.values()) if counts else 0,
+    }
