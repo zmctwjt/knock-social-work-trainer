@@ -208,7 +208,7 @@ export default function KnowledgePage() {
               </div>
             )}
             {ethics.map((e, i) => (
-              <article className="ethic" key={e.code + e.title}
+              <article className="ethic" key={e.id + e.title}
                 style={{ animationDelay: (i * 50) + 'ms' }}>
                 <div className="k">
                   {e.id}
