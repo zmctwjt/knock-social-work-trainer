@@ -107,6 +107,18 @@ jobs:
     name: 端到端审查（真实 MySQL + 浏览器）
     runs-on: ubuntu-latest
     needs: [backend]
+    # GitHub Actions 的 step 之间不继承 env，共享变量必须放在 job 级，
+    # 否则审查脚本会连到默认 SQLite（曾导致 no such table: accounts）
+    env:
+      APP_ENV: dev
+      DATABASE_URL: mysql+aiomysql://knock:knock@127.0.0.1:3306/knock?charset=utf8mb4
+      JWT_SECRET: ci-e2e-secret-0123456789abcdef012345
+      STATIC_DIR: ${{ github.workspace }}/frontend/dist
+      RATE_LIMIT_ENABLED: 'false'
+      GLM_API_KEY: ''
+      UI_BASE: http://127.0.0.1:8000
+      CHROME_PATH: /usr/bin/google-chrome
+      QA_DIR: ${{ github.workspace }}/frontend/qa
     services:
       mysql:
         image: mysql:8.0
@@ -153,23 +165,11 @@ jobs:
 
       - name: 初始化数据库
         working-directory: deliverables/backend
-        env:
-          APP_ENV: dev
-          DATABASE_URL: mysql+aiomysql://knock:knock@127.0.0.1:3306/knock?charset=utf8mb4
-          JWT_SECRET: ci-e2e-secret-0123456789abcdef012345
         run: |
           alembic upgrade head
           python scripts/seed.py
 
       - name: 启动服务并准备数据
-        env:
-          APP_ENV: dev
-          DATABASE_URL: mysql+aiomysql://knock:knock@127.0.0.1:3306/knock?charset=utf8mb4
-          JWT_SECRET: ci-e2e-secret-0123456789abcdef012345
-          STATIC_DIR: ${{ github.workspace }}/frontend/dist
-          RATE_LIMIT_ENABLED: 'false'
-          GLM_API_KEY: ''
-          UI_BASE: http://127.0.0.1:8000
         run: |
           cd deliverables/backend
           nohup python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 \
@@ -184,8 +184,6 @@ jobs:
           python work/seed_training_data.py 3
 
       - name: 无浏览器审查（权限 / 接口 / 点评 / 审计）
-        env:
-          UI_BASE: http://127.0.0.1:8000
         run: |
           set -e
           for s in audit_permissions audit_extended_api audit_comments audit_roles_ui; do
@@ -195,10 +193,6 @@ jobs:
           done
 
       - name: 浏览器审查（界面 / 角色 / 移动端 / 点评闭环）
-        env:
-          UI_BASE: http://127.0.0.1:8000
-          CHROME_PATH: /usr/bin/google-chrome
-          QA_DIR: ${{ github.workspace }}/frontend/qa
         run: |
           set -e
           for s in audit_role_landing audit_workbench_ui audit_mobile audit_knowledge audit_confirm audit_comment_ui; do
