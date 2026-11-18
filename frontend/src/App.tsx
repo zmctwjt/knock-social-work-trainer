@@ -7,6 +7,7 @@
  */
 import { NavLink, Navigate, Routes, Route, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { lazy, Suspense, useState, useEffect } from 'react';
+import ErrorBoundary from './components/ErrorBoundary.tsx';
 import { StoreProvider, useStore } from './store/store.tsx';
 import { SCENARIOS } from './data/scenarios.ts';
 import { isKnownScenario } from './data/scenarios.ts';
@@ -279,7 +280,10 @@ function Routed() {
   return (
     <Bare>
       <Guard>
-        <Routes>
+        {/* 只包路由内容而不是整棵树：页面崩了顶栏还在，
+            用户能直接点导航换页，不用刷新整站 */}
+        <ErrorBoundary>
+          <Routes>
           <Route path="/" element={<RoleHome />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/cases" element={<CaseSelectPage />} />
@@ -303,8 +307,9 @@ function Routed() {
             </RoleGuard>
           } />
           {/* 兜底：任何拼错的地址都回到首页，而不是渲染出「顶栏 + 一条横线 + 大片空白」 */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </ErrorBoundary>
       </Guard>
     </Bare>
   );

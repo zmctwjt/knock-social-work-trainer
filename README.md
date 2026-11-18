@@ -58,7 +58,7 @@
 | 鉴权 | PyJWT（access/refresh）+ Argon2id 口令哈希 + RBAC 四角色 |
 | AI | httpx 自建网关对接智谱 GLM-4.7-Flash（含降级链） |
 | 观测 | structlog · Prometheus · OpenTelemetry（可选） |
-| 测试 | pytest（162 用例）+ 10 个端到端审查脚本 |
+| 测试 | pytest（167 用例）+ 10 个端到端审查脚本 |
 
 ---
 
@@ -136,7 +136,7 @@ npm run build        # 产物由后端托管，单端口 8000 即可访问
 │  ├─ app/domain/                 领域层：规则词表、六维评分、危机判定、ORM 模型
 │  ├─ app/services/               AI 网关、会话、统计、分析、账号、审计
 │  ├─ app/core/                   配置、鉴权、日志、指标、中间件、限流
-│  ├─ alembic/                    数据库迁移（6 个版本）
+│  ├─ alembic/                    数据库迁移（7 个版本）
 │  └─ tests/                      pytest 用例
 ├─ deliverables/deploy/           部署制品（Compose / K8s / Nginx / Prometheus / CI）
 ├─ work/
@@ -160,6 +160,13 @@ npm run build        # 产物由后端托管，单端口 8000 即可访问
 
 命中危机表述由本地硬规则短路，不构造任何提示词、不进入模型调用。
 单元测试以 mock 断言 `provider.calls == []` 来证伪"漏调模型"。
+
+### 前端不白屏
+
+路由内容外挂 `ErrorBoundary`：任一页面在渲染期抛异常时显示可读错误页并给出
+「重试 / 回首页」两个出口，顶栏保持可用（只包路由内容而非整棵树）。
+已验证：用临时崩溃路由触发后，兜底页正常显示、顶栏仍在、恢复按钮有效；
+验证后移除探针路由，不留在产物里。
 
 ### 成绩可复算
 

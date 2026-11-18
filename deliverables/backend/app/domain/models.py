@@ -355,6 +355,9 @@ class TrainingRecord(Base):
     __table_args__ = (
         Index("ix_records_owner_created", "owner_id", "created_at"),
         Index("ix_records_owner_scenario", "owner_id", "scenario_id"),
+        # 平台级统计按时间范围扫描（不涉及 owner_id），
+        # 复合索引最左列是 owner_id 时用不上，需单独建
+        Index("ix_records_created_at", "created_at"),
         Index("ix_records_score_total", "score_total"),
     )
 
