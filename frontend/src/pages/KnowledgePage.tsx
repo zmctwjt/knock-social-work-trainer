@@ -5,12 +5,14 @@
  * 关键词（标题/正文/条款来源）、案例（该卡对应哪类服务对象）、维度（六维能力）。
  * 三者可叠加，命中数实时显示。
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SKILL_CARDS, ETHICS } from '../data/knowledge.ts';
 import { DIMENSIONS } from '../services/scoring.ts';
 import { SCENARIOS } from '../data/scenarios.ts';
 import { useTabKeys } from '../lib/useTabKeys.ts';
+import { apiGet } from '../lib/authClient.ts';
+import { mergeKnowledge, type DbCard } from '../lib/knowledgeMerge.ts';
 
 export default function KnowledgePage() {
   const nav = useNavigate();
@@ -24,32 +26,48 @@ export default function KnowledgePage() {
   const [q, setQ] = useState('');
   const [scenarioId, setScenarioId] = useState('');
   const [dimension, setDimension] = useState('');
+  const [dbCards, setDbCards] = useState<DbCard[] | null>(null);
+  const [syncNote, setSyncNote] = useState('');
+
+  // 管理端维护的技巧卡在数据库里；拉不到就回落静态文件，知识库仍可用
+  useEffect(() => {
+    void apiGet<{ items: DbCard[] }>('/api/v1/knowledge/cards').then((r) => {
+      setDbCards(r?.items ?? null);
+    });
+  }, []);
+
+  // 数据库为准 + 静态补元数据（详见 lib/knowledgeMerge.ts 顶部说明）
+  const merged = useMemo(
+    () => mergeKnowledge(SKILL_CARDS, ETHICS, dbCards),
+    [dbCards],
+  );
 
   const kw = q.trim();
-  const dimName = (k: string) => DIMENSIONS.find((d) => d.key === k)?.name ?? k;
+  const dimName = (k?: string) => (k ? (DIMENSIONS.find((d) => d.key === k)?.name ?? k) : '');
 
   /** 找到某卡对应案例的姓名，用于卡片上显示"适用案例" */
   const scenarioName = (id?: string) =>
     id ? (SCENARIOS.find((s) => s.id === id)?.name ?? id) : '';
 
-  const skills = useMemo(() => SKILL_CARDS.filter((c) => {
-    if (kw && !c.title.includes(kw) && !c.body.includes(kw) && !c.source.includes(kw)) {
+  const skills = useMemo(() => merged.skills.filter((c) => {
+    if (kw
+      && !c.title.includes(kw)
+      && !c.text.includes(kw)
+      && !(c.source || '').includes(kw)
+      && !(c.category || '').includes(kw)) {
       return false;
     }
-    // 案例筛选：卡片的 practice.scenarioId 与所选案例一致
-    if (scenarioId && c.practice?.scenarioId !== scenarioId) return false;
+    if (scenarioId && c.practiceScenarioId !== scenarioId) return false;
     if (dimension && c.dimension !== dimension) return false;
     return true;
-  }), [kw, scenarioId, dimension]);
+  }), [merged, kw, scenarioId, dimension]);
 
-  const ethics = useMemo(() => ETHICS.filter(
-    (e) => !kw
-      || e.title.includes(kw)
-      || e.quote.includes(kw)
-      || (e.explanation || '').includes(kw),
-  ), [kw]);
+  const ethics = useMemo(() => merged.ethics.filter(
+    (e) => !kw || e.title.includes(kw) || e.text.includes(kw),
+  ), [merged, kw]);
 
-  const total = SKILL_CARDS.length + ETHICS.length;
+  const dbOnly = new Set(merged.dbOnlyIds);
+  const total = merged.skills.length + merged.ethics.length;
   const hasFilter = Boolean(kw || scenarioId || dimension);
   const hits = skills.length + ethics.length;
 
@@ -65,8 +83,9 @@ export default function KnowledgePage() {
       <div className="kb-head">
         <div className="k">知识库 · Knowledge Base</div>
         <h2>
-          {SKILL_CARDS.length} 条面谈技巧 · {ETHICS.length} 条伦理守则 · 共 {total} 张卡
+          {merged.skills.length} 条面谈技巧 · {merged.ethics.length} 条伦理守则 · 共 {total} 张卡
         </h2>
+        {syncNote && <p className="sub">{syncNote}</p>}
       </div>
 
       <div className="kb-search">
@@ -146,21 +165,26 @@ export default function KnowledgePage() {
                   <span className="kcard-no">{c.id}</span>
                   <h3>{c.title}</h3>
                 </div>
-                <p>{c.body}</p>
+                <p>{c.text}</p>
                 <div className="kcard-foot">
-                  <span className="tag">{dimName(c.dimension)}</span>
-                  <span className="src">{c.source}</span>
-                  <button
-                    className="linkd"
-                    type="button"
-                    onClick={() => nav('/training/' + c.practice.scenarioId)}
-                  >
-                    去练习 →
-                  </button>
+                  {c.dimension
+                    ? <span className="tag">{dimName(c.dimension)}</span>
+                    : c.category && <span className="tag">{c.category}</span>}
+                  {c.source && <span className="src">{c.source}</span>}
+                  {c.practiceScenarioId && (
+                    <button
+                      className="linkd"
+                      type="button"
+                      onClick={() => nav('/training/' + c.practiceScenarioId)}
+                    >
+                      去练习 →
+                    </button>
+                  )}
+                  {dbOnly.has(c.id) && <span className="src">管理端新增</span>}
                 </div>
-                {c.practice?.scenarioId && (
+                {c.practiceScenarioId && (
                   <div className="kcard-case">
-                    适用案例：{scenarioName(c.practice.scenarioId)}
+                    适用案例：{scenarioName(c.practiceScenarioId)}
                   </div>
                 )}
               </article>
@@ -186,10 +210,12 @@ export default function KnowledgePage() {
             {ethics.map((e, i) => (
               <article className="ethic" key={e.code + e.title}
                 style={{ animationDelay: (i * 50) + 'ms' }}>
-                <div className="k">{e.code}</div>
+                <div className="k">
+                  {e.id}
+                  {dbOnly.has(e.id) && ' · 管理端新增'}
+                </div>
                 <h3>{e.title}</h3>
-                <blockquote className="quote">{e.quote}</blockquote>
-                <p>{e.explanation}</p>
+                <p style={{ whiteSpace: 'pre-line' }}>{e.text}</p>
               </article>
             ))}
           </div>

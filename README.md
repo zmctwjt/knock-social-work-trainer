@@ -26,7 +26,7 @@
 | 阶段结算 | 每阶段汇总，展示得分构成与命中规则 |
 | 复盘报告 | 三段式复盘，指出薄弱项与改进方向 |
 | 成长中心 | 六维雷达、成长曲线、训练热力图、**老师点评** |
-| 知识库 | 19 张技巧卡 + 12 条伦理守则，支持**按案例 + 关键词 + 六维**三重检索 |
+| 知识库 | 技巧卡 + 伦理守则，支持**按案例 + 关键词 + 六维**三重检索；管理端维护的内容实时可见 |
 | 危机处置 | 识别高风险表述并中止对话，提示转介与上报 |
 
 ### 教师端
@@ -64,7 +64,7 @@
 | 鉴权 | PyJWT（access/refresh）+ Argon2id 口令哈希 + RBAC 四角色 |
 | AI | httpx 自建网关对接智谱 GLM-4.7-Flash（含降级链） |
 | 观测 | structlog · Prometheus · OpenTelemetry（可选） |
-| 测试 | pytest（166 用例）+ 10 个端到端审查脚本 |
+| 测试 | pytest（177 用例）+ 10 个端到端审查脚本 |
 
 ---
 
@@ -233,6 +233,16 @@ FCP 从 320 ms 降到 248 ms。这个问题只有实测才能发现，看构建�
 前端篡改无效。会话与记录带 `owner_id`，学员带 `teacher_id` 归属，
 所有按 ID 读取的入口先查主键再比归属，越权返回 40301 而非 40401。
 
+### 管理端维护的内容学生真的能看到
+
+知识库此前只读前端静态文件 `data/knowledge.ts`，而管理端「内容维护」
+改的是数据库。两边同 id 但内容不同，结果**管理端改的内容学生永远看不到**。
+
+现在按「基线在代码 + 数据库覆盖」合并（与判定词表、台词节点同一套模式）：
+数据库为准（管理端改动立即生效），静态文件补 `dimension`/`source`/
+`practice` 这些管理端不管但训练页要用的元数据；数据库读不到时整体回落
+静态文件，知识库照常可用。合并逻辑有 6 个纯函数单元测试。
+
 ### 内容可维护而安全不可削弱
 
 基线词表与台词固化在代码里（保证库故障时判定与对话仍可用），
@@ -279,6 +289,7 @@ python work/audit_comment_ui.py      # 点评端到端闭环（教师发布→�
 python work/audit_knowledge.py       # 知识库按案例 + 关键词检索
 python work/audit_training_flow.py   # 核心训练流程（输入→评分→结算→成长→危机处置）
 python work/audit_a11y.py            # 标签页 ARIA 关联与键盘导航
+python work/audit_xss.py             # 存储型 XSS 浏览器端验证
 python work/audit_mobile.py          # 移动端 390px 无横向溢出
 python work/audit_confirm.py         # 危险操作二次确认
 ```
@@ -289,7 +300,7 @@ CI（`.github/workflows/ci.yml`）在每次推送时运行四个 job：
 | --- | --- |
 | backend | pytest（SQLite）+ 在真实 MySQL 8.0 上执行迁移与 `alembic check` |
 | frontend | tsc 类型检查 + vite 构建 + 校验图表库未进首屏 |
-| **e2e** | 真实 MySQL + 无头 Chrome，跑 12 个端到端审查脚本 |
+| **e2e** | 真实 MySQL + 无头 Chrome，跑 13 个端到端审查脚本 |
 | security | 密钥误提交扫描 + pip-audit 依赖漏洞 |
 
 **测试分布**（19 个模块 / 165 个测试函数，pytest 收集 166 项——含 1 个参数化展开）：

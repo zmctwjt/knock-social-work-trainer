@@ -88,6 +88,10 @@ jobs:
         working-directory: frontend
         run: npx tsc --noEmit
 
+      - name: 前端单元测试（知识库合并逻辑）
+        working-directory: frontend
+        run: npm run test:unit
+
       - name: 生产构建
         working-directory: frontend
         run: npx vite build
@@ -195,7 +199,7 @@ jobs:
       - name: 浏览器审查（界面 / 角色 / 移动端 / 点评闭环）
         run: |
           set -e
-          for s in audit_training_flow audit_a11y audit_role_landing audit_workbench_ui audit_mobile audit_knowledge audit_confirm audit_comment_ui; do
+          for s in audit_training_flow audit_a11y audit_xss audit_role_landing audit_workbench_ui audit_mobile audit_knowledge audit_confirm audit_comment_ui; do
             echo "::group::$s"
             python work/$s.py
             echo "::endgroup::"

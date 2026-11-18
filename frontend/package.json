@@ -12,6 +12,7 @@
     "serve": "node server/index.mjs",
     "preview": "vite preview --port 4173",
     "typecheck": "tsc --noEmit",
+    "test:unit": "tsx tests/knowledgeMerge.test.ts",
     "validate": "python tools/validate.py",
     "test:engine": "tsx src/smoke_test.ts",
     "check": "python tools/check_paths.py",
