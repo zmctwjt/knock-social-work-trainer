@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store/store.tsx';
 import { apiGet, apiGetResult, apiSend, describeApiError } from '../lib/authClient.ts';
+import { ConfirmDialog, type ConfirmOptions } from '../components/ConfirmDialog.tsx';
 import {
   AverageTrendChart,
   DimensionBarChart,
@@ -119,6 +120,7 @@ export default function AdminPage() {
   const [cards, setCards] = useState<CardRow[]>([]);
   const [aiLogs, setAiLogs] = useState<AiLogList | null>(null);
   const [msg, setMsg] = useState('');
+  const [confirm, setConfirm] = useState<ConfirmOptions | null>(null);
   const [denied, setDenied] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -185,19 +187,46 @@ export default function AdminPage() {
     }
   }
 
-  async function toggleActive(row: AccountRow) {
-    const r = await apiSend('PATCH', `/api/v1/admin/accounts/${row.id}/active`, { active: !row.is_active });
-    setMsg(r.ok ? `${row.nickname} 已${row.is_active ? '停用' : '启用'}` : r.msg);
-    if (r.ok) void load();
+  function toggleActive(row: AccountRow) {
+    // 停用会立即阻断该账号登录，属不可逆操作；启用则无需确认
+    if (row.is_active) {
+      setConfirm({
+        title: '停用账号',
+        message: `停用后 ${row.nickname}（${row.username}）将无法登录，已登录的令牌在过期后失效。确定停用？`,
+        confirmLabel: '停用',
+        danger: true,
+        onConfirm: async () => {
+          const r = await apiSend('PATCH', `/api/v1/admin/accounts/${row.id}/active`, { active: false });
+          setMsg(r.ok ? `${row.nickname} 已停用` : r.msg);
+          if (r.ok) void load();
+        },
+      });
+      return;
+    }
+    void (async () => {
+      const r = await apiSend('PATCH', `/api/v1/admin/accounts/${row.id}/active`, { active: true });
+      setMsg(r.ok ? `${row.nickname} 已启用` : r.msg);
+      if (r.ok) void load();
+    })();
   }
 
-  async function bulkToggle(active: boolean) {
+  function bulkToggle(active: boolean) {
     if (!selected.length) { setMsg('先勾选账号'); return; }
-    const r = await apiSend<{ updated: number; failed: number }>(
-      'POST', '/api/v1/admin/accounts/bulk-active', { account_ids: selected, active },
-    );
-    setMsg(r.ok ? `批量${active ? '启用' : '停用'} ${r.data?.updated ?? 0} 个账号` : r.msg);
-    if (r.ok) { setSelected([]); void load(); }
+    const run = async () => {
+      const r = await apiSend<{ updated: number; failed: number }>(
+        'POST', '/api/v1/admin/accounts/bulk-active', { account_ids: selected, active },
+      );
+      setMsg(r.ok ? `批量${active ? '启用' : '停用'} ${r.data?.updated ?? 0} 个账号` : r.msg);
+      if (r.ok) { setSelected([]); void load(); }
+    };
+    if (active) { void run(); return; }
+    setConfirm({
+      title: `批量停用 ${selected.length} 个账号`,
+      message: '这些账号将立即无法登录。请确认已核对勾选范围。',
+      confirmLabel: '批量停用',
+      danger: true,
+      onConfirm: run,
+    });
   }
 
   async function addWord() {
@@ -231,10 +260,18 @@ export default function AdminPage() {
     if (r.ok) { setNewLine({ text: '', emotion_bucket: 'mid', scenario_id: '' }); void load(); }
   }
 
-  async function removeLine(id: string) {
-    const r = await apiSend('DELETE', `/api/v1/admin/script-lines/${id}`);
-    setMsg(r.ok ? '台词已删除' : r.msg);
-    if (r.ok) void load();
+  function removeLine(id: string) {
+    setConfirm({
+      title: '删除台词',
+      message: '删除后该情绪档会回落到代码内置的基线台词。确定删除？',
+      confirmLabel: '删除',
+      danger: true,
+      onConfirm: async () => {
+        const r = await apiSend('DELETE', `/api/v1/admin/script-lines/${id}`);
+        setMsg(r.ok ? '台词已删除' : r.msg);
+        if (r.ok) void load();
+      },
+    });
   }
 
   async function saveCard() {
@@ -244,10 +281,18 @@ export default function AdminPage() {
     if (r.ok) { setCardForm({ id: '', title: '', category: '技巧', summary: '', content: '' }); void load(); }
   }
 
-  async function deleteCard(id: string) {
-    const r = await apiSend('DELETE', `/api/v1/admin/cards/${id}`);
-    setMsg(r.ok ? `技巧卡 ${id} 已删除` : r.msg);
-    if (r.ok) void load();
+  function deleteCard(id: string) {
+    setConfirm({
+      title: '删除技巧卡',
+      message: `技巧卡 ${id} 将被物理删除，训练记录中的引用不受影响，但知识库不再展示。确定删除？`,
+      confirmLabel: '删除',
+      danger: true,
+      onConfirm: async () => {
+        const r = await apiSend('DELETE', `/api/v1/admin/cards/${id}`);
+        setMsg(r.ok ? `技巧卡 ${id} 已删除` : r.msg);
+        if (r.ok) void load();
+      },
+    });
   }
 
   async function saveScenario() {
@@ -260,10 +305,18 @@ export default function AdminPage() {
     }
   }
 
-  async function archiveScenario(id: string) {
-    const r = await apiSend('DELETE', `/api/v1/admin/scenarios/${id}`);
-    setMsg(r.ok ? `案例 ${id} 已下架` : r.msg);
-    if (r.ok) void load();
+  function archiveScenario(id: string) {
+    setConfirm({
+      title: '下架案例',
+      message: `案例 ${id} 将不再出现在选角列表，历史训练记录仍可查看。确定下架？`,
+      confirmLabel: '下架',
+      danger: true,
+      onConfirm: async () => {
+        const r = await apiSend('DELETE', `/api/v1/admin/scenarios/${id}`);
+        setMsg(r.ok ? `案例 ${id} 已下架` : r.msg);
+        if (r.ok) void load();
+      },
+    });
   }
 
   const filteredAccounts = useMemo(() => {
@@ -683,6 +736,12 @@ export default function AdminPage() {
           </>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirm !== null}
+        options={confirm}
+        onClose={() => setConfirm(null)}
+      />
     </div>
   );
 }
