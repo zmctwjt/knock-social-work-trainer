@@ -444,6 +444,8 @@ async def admin_ai_logs(
         stmt = stmt.where(AiAuditLog.status == status)
     rows = (await session.execute(stmt.limit(max(1, min(limit, 500))))).scalars().all()
 
+    # 状态口径：ok=走了模型，degraded=按设计降级到规则，error=真失败。
+    # 成功率不能只算 ok —— 规则模式下降级是预期行为，算成失败会让面板常年 0%。
     total = (
         await session.execute(select(func.count(AiAuditLog.id)))
     ).scalar_one()
@@ -452,8 +454,23 @@ async def admin_ai_logs(
             select(func.count(AiAuditLog.id)).where(AiAuditLog.status == "ok")
         )
     ).scalar_one()
+    degraded_count = (
+        await session.execute(
+            select(func.count(AiAuditLog.id)).where(AiAuditLog.status == "degraded")
+        )
+    ).scalar_one()
+    error_count = (
+        await session.execute(
+            select(func.count(AiAuditLog.id)).where(AiAuditLog.status == "error")
+        )
+    ).scalar_one()
+    # 仅对真正调用了模型的请求计算延迟，降级/缓存命中的 0ms 会拉低均值
     avg_latency = (
-        await session.execute(select(func.avg(AiAuditLog.latency_ms)))
+        await session.execute(
+            select(func.avg(AiAuditLog.latency_ms)).where(
+                AiAuditLog.status == "ok", AiAuditLog.latency_ms > 0
+            )
+        )
     ).scalar_one()
 
     items = [
@@ -470,11 +487,16 @@ async def admin_ai_logs(
         }
         for row in rows
     ]
+    served = int(total or 0) - int(error_count or 0)
     return {
         "items": items,
         "total": len(items),
         "all_total": int(total or 0),
-        "success_rate": round(int(ok_count or 0) / int(total) * 100, 1) if total else 0.0,
+        # 可用率 = 未出错的请求占比（含降级），这才是用户视角的"服务是否正常"
+        "success_rate": round(served / int(total) * 100, 1) if total else 0.0,
+        "ok_count": int(ok_count or 0),
+        "degraded_count": int(degraded_count or 0),
+        "error_count": int(error_count or 0),
         "avg_latency_ms": int(avg_latency) if avg_latency else 0,
     }
 

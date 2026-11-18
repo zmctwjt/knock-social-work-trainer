@@ -36,17 +36,21 @@ echarts.use([
   CanvasRenderer,
 ]);
 
-/** 站点配色，与全站深蓝 + 橙保持一致 */
-const INK = '#1F3A5F';
-const AMBER = '#D97706';
-const MUTED = '#8a8578';
-const GRID_LINE = '#eeece7';
+/** 与全站一致的配色令牌（取自 index.css 的 :root） */
+const GREEN = '#2F5D50';        // --green 主色
+const GREEN_DEEP = '#22463C';   // --green-deep
+const PROOF = '#B23A1E';        // --proof 强调（最弱项、告警）
+const INK2 = '#5A5248';         // --ink-2 正文
+const MUTED = '#948B7C';        // --ink-4 弱化
+const RULE = '#DCD4C7';         // --rule 分割线
+const GREEN_WASH = 'rgba(47,93,80,.18)';
 
 const BASE_TEXT = {
+  // 与全站同一字体栈：中文优先思源/苹方，避免图表文字与页面不一致
   fontFamily:
-    '-apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif',
-  color: MUTED,
-  fontSize: 12,
+    '"Source Han Sans SC", "Noto Sans SC", -apple-system, "Microsoft YaHei", sans-serif',
+  color: INK2,
+  fontSize: 11.5,
 };
 
 export interface TrendPoint {
@@ -75,7 +79,7 @@ export function AverageTrendChart({
       : 0;
     return {
       textStyle: BASE_TEXT,
-      title: title ? { text: title, left: 0, textStyle: { ...BASE_TEXT, fontSize: 13, color: INK } } : undefined,
+      title: title ? { text: title, left: 0, textStyle: { ...BASE_TEXT, fontSize: 13, color: GREEN } } : undefined,
       tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'cross', crossStyle: { color: '#ccc' } },
@@ -95,7 +99,7 @@ export function AverageTrendChart({
       xAxis: {
         type: 'category',
         data: dates,
-        axisLine: { lineStyle: { color: GRID_LINE } },
+        axisLine: { lineStyle: { color: RULE } },
         axisTick: { show: false },
         axisLabel: BASE_TEXT,
       },
@@ -106,7 +110,7 @@ export function AverageTrendChart({
           min: 0,
           max: 100,
           nameTextStyle: BASE_TEXT,
-          splitLine: { lineStyle: { color: GRID_LINE } },
+          splitLine: { lineStyle: { color: RULE } },
           axisLabel: BASE_TEXT,
         },
         {
@@ -125,7 +129,7 @@ export function AverageTrendChart({
           yAxisIndex: 1,
           data: counts,
           barMaxWidth: 14,
-          itemStyle: { color: 'rgba(31,58,95,0.18)', borderRadius: [2, 2, 0, 0] },
+          itemStyle: { color: 'rgba(47,93,80,0.16)', borderRadius: [2, 2, 0, 0] },
         },
         {
           name: '平均分',
@@ -136,19 +140,19 @@ export function AverageTrendChart({
           symbol: 'circle',
           symbolSize: 7,
           connectNulls: false,
-          lineStyle: { width: 2.5, color: AMBER },
-          itemStyle: { color: AMBER },
+          lineStyle: { width: 2.5, color: PROOF },
+          itemStyle: { color: PROOF },
           areaStyle: {
             color: new graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: 'rgba(217,119,6,0.22)' },
-              { offset: 1, color: 'rgba(217,119,6,0.02)' },
+              { offset: 0, color: 'rgba(47,93,80,0.20)' },
+              { offset: 1, color: 'rgba(47,93,80,0.02)' },
             ]),
           },
           markLine: mean
             ? {
                 silent: true,
                 symbol: 'none',
-                lineStyle: { color: INK, type: 'dashed', width: 1 },
+                lineStyle: { color: GREEN_DEEP, type: 'dashed', width: 1 },
                 label: { formatter: `均值 ${mean}`, ...BASE_TEXT },
                 data: [{ yAxis: mean }],
               }
@@ -203,7 +207,7 @@ export function DimensionBarChart({
         type: 'value',
         min: 0,
         max: 100,
-        splitLine: { lineStyle: { color: GRID_LINE } },
+        splitLine: { lineStyle: { color: RULE } },
         axisLabel: BASE_TEXT,
       },
       yAxis: {
@@ -211,7 +215,7 @@ export function DimensionBarChart({
         data: sorted.map((d) => d.name),
         axisLine: { show: false },
         axisTick: { show: false },
-        axisLabel: { ...BASE_TEXT, color: '#5b5648' },
+        axisLabel: { ...BASE_TEXT, color: INK2 },
       },
       series: [
         {
@@ -219,7 +223,7 @@ export function DimensionBarChart({
           data: sorted.map((d) => ({
             value: d.avg,
             itemStyle: {
-              color: d.key === weakest ? AMBER : INK,
+              color: d.key === weakest ? PROOF : GREEN,
               borderRadius: [0, 4, 4, 0],
             },
           })),
@@ -229,7 +233,7 @@ export function DimensionBarChart({
             position: 'right',
             formatter: '{c}',
             ...BASE_TEXT,
-            color: '#5b5648',
+            color: INK2,
           },
         },
       ],
@@ -272,10 +276,10 @@ export function RadarDimensionChart({
         indicator: indicators,
         center: ['50%', '52%'],
         radius: '66%',
-        axisName: { ...BASE_TEXT, color: '#5b5648' },
-        splitLine: { lineStyle: { color: GRID_LINE } },
+        axisName: { ...BASE_TEXT, color: INK2 },
+        splitLine: { lineStyle: { color: RULE } },
         splitArea: { areaStyle: { color: ['#fff', '#faf9f7'] } },
-        axisLine: { lineStyle: { color: GRID_LINE } },
+        axisLine: { lineStyle: { color: RULE } },
       },
       series: [
         {
@@ -284,9 +288,9 @@ export function RadarDimensionChart({
             name: s.name,
             value: s.dims.map((d) => d.avg),
             symbolSize: 5,
-            lineStyle: { width: 2, color: i === 0 ? AMBER : INK },
-            itemStyle: { color: i === 0 ? AMBER : INK },
-            areaStyle: { opacity: i === 0 ? 0.25 : 0.12, color: i === 0 ? AMBER : INK },
+            lineStyle: { width: 2, color: i === 0 ? PROOF : GREEN },
+            itemStyle: { color: i === 0 ? PROOF : GREEN },
+            areaStyle: { opacity: i === 0 ? 0.22 : 0.10, color: i === 0 ? PROOF : GREEN },
           })),
         },
       ],
@@ -318,7 +322,7 @@ export function DistributionPieChart({
     textStyle: BASE_TEXT,
     tooltip: { trigger: 'item', formatter: '{b}：{c}（{d}%）' },
     legend: { bottom: 0, itemWidth: 10, itemHeight: 10, textStyle: BASE_TEXT },
-    color: [INK, AMBER, '#6b8fb5', '#b9a88c', '#8a8578'],
+    color: [GREEN, PROOF, '#7A9A5B', '#C99A4E', '#8C8378'],
     series: [
       {
         type: 'pie',
@@ -326,7 +330,7 @@ export function DistributionPieChart({
         center: ['50%', '44%'],
         avoidLabelOverlap: true,
         itemStyle: { borderColor: '#fff', borderWidth: 2 },
-        label: { show: true, formatter: '{b}\n{c}', ...BASE_TEXT, color: '#5b5648' },
+        label: { show: true, formatter: '{b}\n{c}', ...BASE_TEXT, color: INK2 },
         data,
       },
     ],
@@ -376,7 +380,7 @@ export function ScenarioUsageChart({
       xAxis: {
         type: 'value',
         minInterval: 1,
-        splitLine: { lineStyle: { color: GRID_LINE } },
+        splitLine: { lineStyle: { color: RULE } },
         axisLabel: BASE_TEXT,
       },
       yAxis: {
@@ -384,15 +388,15 @@ export function ScenarioUsageChart({
         data: sorted.map((s) => s.scenario_name),
         axisLine: { show: false },
         axisTick: { show: false },
-        axisLabel: { ...BASE_TEXT, color: '#5b5648' },
+        axisLabel: { ...BASE_TEXT, color: INK2 },
       },
       series: [
         {
           type: 'bar',
           data: sorted.map((s) => s.sessions),
           barMaxWidth: 14,
-          itemStyle: { color: INK, borderRadius: [0, 4, 4, 0] },
-          label: { show: true, position: 'right', formatter: '{c} 次', ...BASE_TEXT, color: '#5b5648' },
+          itemStyle: { color: GREEN, borderRadius: [0, 4, 4, 0] },
+          label: { show: true, position: 'right', formatter: '{c} 次', ...BASE_TEXT, color: INK2 },
         },
       ],
     };

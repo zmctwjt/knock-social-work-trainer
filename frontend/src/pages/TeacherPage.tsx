@@ -1,9 +1,12 @@
 /**
  * 教师工作台
  *
+ * 视觉与学生端（成长中心 P6）对齐：衬线大标题、等宽小字标签、
+ * 纸色卡片、细分割线。样式用 `wb-*` 公共类而非内联，避免两端走形。
+ *
  * 四个视图：班级总览 / 学员画像 / 训练趋势 / 内容查阅。
- * 权限以服务端为准——本页只是入口，真正的隔离在 `require_roles` 与
- * `accounts.teacher_id` 归属过滤上；越权时接口返回 40301。
+ * 权限以服务端为准——本页只是入口，真正的隔离在 require_roles 与
+ * accounts.teacher_id 归属过滤上。
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -35,58 +38,33 @@ interface ClassStats {
   weakest_score: number;
 }
 
-interface DimAvg {
-  key: string;
-  name: string;
-  avg: number;
-  count: number;
-}
-
-interface TrendPoint {
-  date: string;
-  sessions: number;
-  avg_total: number;
-}
-
+interface DimAvg { key: string; name: string; avg: number; count: number }
+interface TrendPoint { date: string; sessions: number; avg_total: number }
 interface ScenarioUsage {
-  scenario_id: string;
-  scenario_name: string;
-  sessions: number;
-  avg_total: number;
+  scenario_id: string; scenario_name: string; sessions: number; avg_total: number;
 }
-
 interface ClassTrend {
-  points: TrendPoint[];
-  dimensions: DimAvg[];
-  scenarios: ScenarioUsage[];
+  points: TrendPoint[]; dimensions: DimAvg[]; scenarios: ScenarioUsage[];
 }
-
 interface LearnerDetail {
-  account_id: string;
-  username: string;
-  nickname: string;
-  is_active: boolean;
-  last_login_at: string | null;
-  sessions: number;
-  finished: number;
-  avg_total: number;
-  best_total: number;
-  total_turns: number;
-  total_minutes: number;
-  dimensions: DimAvg[];
-  weakest: string;
-  trend: TrendPoint[];
-  scenarios: ScenarioUsage[];
+  account_id: string; username: string; nickname: string;
+  is_active: boolean; last_login_at: string | null;
+  sessions: number; finished: number; avg_total: number; best_total: number;
+  total_turns: number; total_minutes: number;
+  dimensions: DimAvg[]; weakest: string;
+  trend: TrendPoint[]; scenarios: ScenarioUsage[];
 }
-
 interface RecordRow {
-  scenario_name?: string;
-  score_total?: number;
-  created_at?: string;
+  scenario_name?: string; score_total?: number; created_at?: string;
 }
 
-const TABS = ['班级总览', '学员画像', '训练趋势', '内容查阅'] as const;
-type Tab = (typeof TABS)[number];
+const TABS = [
+  { key: '班级总览', no: '01' },
+  { key: '学员画像', no: '02' },
+  { key: '训练趋势', no: '03' },
+  { key: '内容查阅', no: '04' },
+] as const;
+type Tab = (typeof TABS)[number]['key'];
 
 const DIM_LABEL: Record<string, string> = {
   empathy: '同感与倾听',
@@ -107,7 +85,9 @@ export default function TeacherPage() {
   const [detail, setDetail] = useState<LearnerDetail | null>(null);
   const [records, setRecords] = useState<RecordRow[]>([]);
   const [selected, setSelected] = useState<Learner | null>(null);
-  const [cards, setCards] = useState<{ id: string; title: string; category: string; summary: string }[]>([]);
+  const [cards, setCards] = useState<
+    { id: string; title: string; category: string; summary: string }[]
+  >([]);
   const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
@@ -131,7 +111,6 @@ export default function TeacherPage() {
       apiGetResult<ClassTrend>('/api/v1/teacher/trend'),
     ]);
     const l = lr.data; const s = sr.data; const t = tr.data;
-    // 用结构化错误给出准确提示：无权限 / 掉线 / 服务异常，三种情况文案不同
     const firstError = lr.error ?? sr.error ?? tr.error;
     setErr(firstError ? describeApiError(firstError, '班级数据加载失败') : '');
     const items = l?.items ?? [];
@@ -139,8 +118,7 @@ export default function TeacherPage() {
     setStats(s ?? null);
     setTrend(t ?? null);
     setLoading(false);
-    // 自动选中第一名学员：否则直接切到「学员画像」会是一片空白，
-    // 用户以为坏了。有数据时默认展示最需要关注的人（均分最低者）。
+    // 默认选中均分最低的学员——最需要关注的人
     if (items.length) {
       const target = [...items].sort((a, b) => (a.avg_total || 999) - (b.avg_total || 999))[0];
       setSelected(target);
@@ -148,9 +126,7 @@ export default function TeacherPage() {
     }
   }, [loadDetail]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
   useEffect(() => {
     void apiGet<{ items: typeof cards }>('/api/v1/knowledge/cards').then((r) => {
@@ -170,10 +146,7 @@ export default function TeacherPage() {
     if (!name) return;
     const r = await apiSend('POST', '/api/v1/teacher/learners', { username: name });
     setMsg(r.ok ? `已将 ${name} 加入名下学员` : r.msg);
-    if (r.ok) {
-      setBindName('');
-      void load();
-    }
+    if (r.ok) { setBindName(''); void load(); }
   }
 
   const filteredCards = useMemo(() => {
@@ -187,9 +160,16 @@ export default function TeacherPage() {
   if (!account) {
     return (
       <div className="screen is-on">
-        <div className="frame" style={{ padding: '48px 0' }}>
-          <p>请先登录教师或管理员账号。</p>
-          <button className="btn-primary" type="button" onClick={() => nav('/login')}>去登录</button>
+        <div className="wb-frame">
+          <div className="wb-empty">
+            <b>需要登录</b>
+            教师工作台仅对教师与管理员开放。
+            <div style={{ marginTop: 16 }}>
+              <button className="btn-primary" type="button" onClick={() => nav('/login')}>
+                去登录
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -197,203 +177,333 @@ export default function TeacherPage() {
 
   return (
     <div className="screen is-on">
-      <div className="frame" style={{ display: 'block', padding: '28px 0 64px' }}>
-        <div className="k">教师工作台 · TEACHER</div>
-        <h2 style={{ margin: '8px 0 4px' }}>{account.nickname}，欢迎回来</h2>
-        <p style={{ color: 'var(--ink-3)', marginBottom: 16 }}>
-          当前角色：{role === 'admin' ? '管理员（可查看全部学员）' : '教师'}。只能看到自己名下学员的数据。
-        </p>
+      <div className="wb-frame" style={{ paddingBottom: 72 }}>
+        {/* 页面头部：与学生端 p6-head 同款 */}
+        <div className="wb-head">
+          <div className="k">教师工作台 · Teacher</div>
+          <h2>{account.nickname}，欢迎回来</h2>
+          <p className="sub">
+            {role === 'admin'
+              ? '当前角色为管理员，可查看全部学员数据。'
+              : '当前角色为教师，只能看到自己名下学员的数据；跨班查询返回空集。'}
+          </p>
+          <div className="meta">
+            {stats
+              ? `${stats.learners} 名学员 · ${stats.sessions} 次训练 · 班级均分 ${stats.avg_total || '—'}`
+              : '数据加载中'}
+            {role === 'admin' && ' · 可进入管理后台'}
+          </div>
+        </div>
 
-        <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
+        {/* 视图切换 */}
+        <div className="wb-tabs" role="tablist">
           {TABS.map((t) => (
-            <button key={t} type="button" className={t === tab ? 'btn-primary' : 'btn-ghost'}
-              onClick={() => setTab(t)} style={{ padding: '6px 16px' }}>{t}</button>
+            <button
+              key={t.key}
+              type="button"
+              role="tab"
+              className="wb-tab"
+              aria-selected={tab === t.key}
+              onClick={() => setTab(t.key)}
+            >
+              <span className="no">{t.no}</span>
+              {t.key}
+            </button>
           ))}
-          <button className="btn-ghost" type="button" onClick={() => { void load(); }}
-            style={{ padding: '6px 16px' }}>刷新</button>
           {role === 'admin' && (
-            <button className="btn-ghost" type="button" onClick={() => nav('/admin')}
-              style={{ padding: '6px 16px' }}>管理后台</button>
+            <button type="button" className="wb-tab" style={{ marginLeft: 'auto' }}
+              onClick={() => nav('/admin')}>
+              管理后台 →
+            </button>
           )}
         </div>
 
-        {msg && <p style={{ color: '#b45309', marginBottom: 12, fontSize: 13 }}>{msg}</p>}
-        {loading && <p style={{ color: 'var(--ink-3)' }}>加载中…</p>}
-        {err && <p style={{ color: '#b45309' }}>{err}</p>}
+        {msg && <div className="wb-alert ok">{msg}</div>}
+        {err && <div className="wb-alert err">{err}</div>}
+        {loading && <div className="wb-alert info">正在读取班级数据…</div>}
 
-        {/* ── 班级总览 ── */}
+        {/* ── 01 班级总览 ── */}
         {tab === '班级总览' && (
           <>
             {stats && (
-              <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', padding: '16px 0 24px' }}>
-                {[
-                  ['学员数', stats.learners],
-                  ['训练次数', stats.sessions],
-                  ['班级均分', stats.avg_total || '—'],
-                  ['最薄弱维度', stats.weakest ? DIM_LABEL[stats.weakest] || stats.weakest : '—'],
-                ].map(([label, value]) => (
-                  <div key={String(label)}>
-                    <div className="k">{label}</div>
-                    <b style={{ fontSize: 26 }}>{value}</b>
+              <div className="wb-metrics">
+                <div className="wb-metric">
+                  <div className="k">学员数</div>
+                  <div className="n">{stats.learners}</div>
+                  <div className="d">已归属到名下</div>
+                </div>
+                <div className="wb-metric">
+                  <div className="k">训练次数</div>
+                  <div className="n">{stats.sessions}</div>
+                  <div className="d">累计完成训练</div>
+                </div>
+                <div className="wb-metric">
+                  <div className="k">班级均分</div>
+                  <div className="n">{stats.avg_total || '—'}</div>
+                  <div className="d">六维加权总分</div>
+                </div>
+                <div className="wb-metric">
+                  <div className="k">最薄弱维度</div>
+                  <div className="n warn" style={{ fontSize: 18 }}>
+                    {stats.weakest ? DIM_LABEL[stats.weakest] || stats.weakest : '—'}
                   </div>
-                ))}
+                  <div className="d">
+                    {stats.weakest ? `均分 ${stats.weakest_score}` : '暂无评分数据'}
+                  </div>
+                </div>
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', margin: '8px 0 18px', flexWrap: 'wrap' }}>
-              <input placeholder="输入学员用户名，绑定到名下" value={bindName}
-                onChange={(e) => setBindName(e.target.value)}
-                style={{ padding: '8px 12px', border: '1px solid #ddd', borderRadius: 6, minWidth: 220 }} />
-              <button className="btn-primary" type="button" onClick={bindLearner}
-                style={{ padding: '8px 16px' }}>绑定</button>
+            <div className="wb-grid">
+              <div className="wb-panel">
+                <div className="wb-panel-h">
+                  <span>名下学员</span>
+                  <span className="hint">点击查看学员画像</span>
+                </div>
+                {learners.length === 0 && !loading && (
+                  <div className="wb-empty">
+                    <b>还没有学员</b>
+                    在右侧输入学员用户名完成绑定，或由管理员在管理后台创建账号。
+                  </div>
+                )}
+                {learners.map((x) => (
+                  <button
+                    key={x.account_id}
+                    type="button"
+                    className="wb-row wb-row-btn"
+                    onClick={() => openLearner(x)}
+                  >
+                    <span className="name">{x.nickname}</span>
+                    <span className="mono">{x.username}</span>
+                    <span className="spacer" />
+                    <span className="mono">训练 {x.sessions}</span>
+                    <span className="mono">均分 {x.avg_total || '—'}</span>
+                    <span className={`tag ${x.is_active ? 'ok' : 'warn'}`}>
+                      {x.is_active ? '正常' : '停用'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              <div>
+                <div className="wb-panel">
+                  <div className="wb-panel-h">绑定学员</div>
+                  <p style={{ fontSize: 12.5, color: 'var(--ink-3)', lineHeight: 1.7,
+                    margin: '0 0 12px' }}>
+                    输入学员用户名，加入名下后即可查看其训练数据。
+                  </p>
+                  <div className="wb-form" style={{ marginBottom: 0 }}>
+                    <input
+                      className="wb-input"
+                      style={{ flex: 1, minWidth: 120 }}
+                      placeholder="学员用户名"
+                      value={bindName}
+                      onChange={(e) => setBindName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') void bindLearner(); }}
+                    />
+                    <button className="btn-primary" type="button" onClick={bindLearner}
+                      style={{ padding: '9px 18px' }}>
+                      绑定
+                    </button>
+                  </div>
+                </div>
+
+                {trend && trend.dimensions.length > 0 && (
+                  <div className="wb-panel">
+                    <div className="wb-panel-h">班级六维</div>
+                    <RadarDimensionChart
+                      series={[{ name: '班级均值', dims: trend.dimensions }]}
+                      height={260}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="k" style={{ marginBottom: 10 }}>名下学员（{learners.length}，点击看画像）</div>
-            {learners.length === 0 && !loading && (
-              <p style={{ color: 'var(--ink-3)' }}>
-                暂无学员。可在上方绑定，或由管理员在管理后台创建学生账号。
-              </p>
+            {trend && trend.points.some((p) => p.sessions > 0) && (
+              <div className="wb-panel">
+                <div className="wb-panel-h">
+                  <span>班级近期训练量</span>
+                  <span className="hint">近 14 天，折线为均分</span>
+                </div>
+                <AverageTrendChart points={trend.points} height={230} />
+              </div>
             )}
-            {learners.map((x) => (
-              <button key={x.account_id} type="button" onClick={() => openLearner(x)}
-                style={{
-                  display: 'flex', gap: 16, alignItems: 'center', width: '100%', textAlign: 'left',
-                  padding: '12px 14px', border: '1px solid #eee', borderRadius: 8,
-                  background: '#fff', marginBottom: 8, cursor: 'pointer',
-                }}>
-                <span style={{ width: 24, height: 24, borderRadius: '50%', background: '#1F3A5F',
-                  color: '#fff', fontSize: 12, display: 'grid', placeItems: 'center' }}>
-                  {x.nickname[0]}
-                </span>
-                <span style={{ width: 110 }}>{x.nickname}</span>
-                <span style={{ width: 120, fontSize: 13, color: 'var(--ink-3)' }}>{x.username}</span>
-                <span style={{ width: 90, fontSize: 13 }}>训练 {x.sessions} 次</span>
-                <span style={{ width: 90, fontSize: 13 }}>均分 {x.avg_total || '—'}</span>
-                <span style={{
-                  width: 70, fontSize: 12,
-                  color: x.is_active ? '#15803d' : '#b91c1c',
-                }}>{x.is_active ? '正常' : '已停用'}</span>
-                <span style={{ flex: 1, fontSize: 12, color: 'var(--ink-3)', textAlign: 'right' }}>
-                  {x.last_login_at ? `最近登录 ${new Date(x.last_login_at).toLocaleDateString('zh-CN')}` : '从未登录'}
-                </span>
-              </button>
-            ))}
           </>
         )}
 
-        {/* ── 学员画像 ── */}
+        {/* ── 02 学员画像 ── */}
         {tab === '学员画像' && (
           <>
             {!selected && (
-              <p style={{ color: 'var(--ink-3)' }}>请先在「班级总览」里点击一名学员。</p>
+              <div className="wb-empty">
+                <b>请选择学员</b>
+                在「班级总览」里点击任意一名学员即可查看完整画像。
+              </div>
             )}
-            {selected && !detail && <p style={{ color: 'var(--ink-3)' }}>读取画像中…</p>}
+            {selected && !detail && <div className="wb-alert info">正在读取学员画像…</div>}
             {selected && detail && (
               <>
-                <h3 style={{ margin: '4px 0 12px' }}>
-                  {detail.nickname}
-                  <span style={{ fontSize: 13, color: 'var(--ink-3)', marginLeft: 10 }}>
-                    {detail.username} · {detail.is_active ? '在册' : '已停用'}
-                  </span>
-                </h3>
-                <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap', marginBottom: 24 }}>
-                  {[
-                    ['训练次数', detail.sessions],
-                    ['完成会话', detail.finished],
-                    ['平均分', detail.avg_total || '—'],
-                    ['最好成绩', detail.best_total || '—'],
-                    ['总轮次', detail.total_turns],
-                    ['累计时长', `${detail.total_minutes} 分钟`],
-                  ].map(([label, value]) => (
-                    <div key={String(label)}>
-                      <div className="k">{label}</div>
-                      <b style={{ fontSize: 22 }}>{value}</b>
+                <div className="wb-metrics">
+                  <div className="wb-metric">
+                    <div className="k">训练次数</div>
+                    <div className="n">{detail.sessions}</div>
+                    <div className="d">完成 {detail.finished} 次会话</div>
+                  </div>
+                  <div className="wb-metric">
+                    <div className="k">平均分</div>
+                    <div className="n">{detail.avg_total || '—'}</div>
+                    <div className="d">最好 {detail.best_total || '—'}</div>
+                  </div>
+                  <div className="wb-metric">
+                    <div className="k">总轮次</div>
+                    <div className="n">{detail.total_turns}</div>
+                    <div className="d">面谈发言轮数</div>
+                  </div>
+                  <div className="wb-metric">
+                    <div className="k">累计时长</div>
+                    <div className="n">{detail.total_minutes}</div>
+                    <div className="d">分钟</div>
+                  </div>
+                  <div className="wb-metric">
+                    <div className="k">最薄弱</div>
+                    <div className="n warn" style={{ fontSize: 17 }}>
+                      {detail.weakest ? DIM_LABEL[detail.weakest] || detail.weakest : '—'}
                     </div>
-                  ))}
+                    <div className="d">建议重点练习</div>
+                  </div>
                 </div>
 
-                <div className="k" style={{ marginBottom: 10 }}>
-                  六维画像{detail.weakest ? `（最薄弱：${DIM_LABEL[detail.weakest] || detail.weakest}）` : ''}
+                <div className="wb-grid">
+                  <div className="wb-panel">
+                    <div className="wb-panel-h">
+                      <span>{detail.nickname} · 六维画像</span>
+                      <span className="hint">{detail.username}</span>
+                    </div>
+                    <RadarDimensionChart
+                      series={[{ name: detail.nickname, dims: detail.dimensions }]}
+                      height={300}
+                    />
+                  </div>
+                  <div className="wb-panel">
+                    <div className="wb-panel-h">近 14 天进步曲线</div>
+                    <AverageTrendChart points={detail.trend} height={240} />
+                  </div>
                 </div>
-                <RadarDimensionChart series={[{ name: detail.nickname, dims: detail.dimensions }]} />
 
-                <div className="k" style={{ margin: '24px 0 10px' }}>近 14 天进步曲线</div>
-                <AverageTrendChart points={detail.trend} height={240} />
-
-                <div className="k" style={{ margin: '24px 0 10px' }}>练习过的案例</div>
-                {detail.scenarios.length === 0 && (
-                  <p style={{ color: 'var(--ink-3)', fontSize: 13 }}>还没有训练记录。</p>
-                )}
-                {detail.scenarios.map((s) => (
-                  <div key={s.scenario_id} style={{
-                    display: 'flex', gap: 16, padding: '8px 0', borderBottom: '1px solid #f2f0ec',
-                  }}>
-                    <span style={{ width: 100, fontSize: 13, color: 'var(--ink-3)' }}>{s.scenario_id}</span>
-                    <span style={{ width: 140 }}>{s.scenario_name}</span>
-                    <span style={{ width: 90, fontSize: 13 }}>{s.sessions} 次</span>
-                    <span style={{ fontSize: 13 }}>均分 {s.avg_total || '—'}</span>
+                <div className="wb-grid">
+                  <div className="wb-panel">
+                    <div className="wb-panel-h">练习过的案例</div>
+                    {detail.scenarios.length === 0 && (
+                      <div className="wb-empty">该学员还没有训练记录。</div>
+                    )}
+                    {detail.scenarios.map((s) => (
+                      <div key={s.scenario_id} className="wb-row">
+                        <span className="mono" style={{ width: 56 }}>{s.scenario_id}</span>
+                        <span className="name">{s.scenario_name}</span>
+                        <span className="spacer" />
+                        <span className="mono">{s.sessions} 次</span>
+                        <span className="mono">均 {s.avg_total || '—'}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-
-                <div className="k" style={{ margin: '24px 0 10px' }}>最近训练记录</div>
-                {records.length === 0 && (
-                  <p style={{ color: 'var(--ink-3)', fontSize: 13 }}>暂无记录。</p>
-                )}
-                {records.slice(0, 20).map((r, i) => (
-                  <div key={i} style={{
-                    display: 'flex', gap: 16, padding: '7px 0', borderBottom: '1px solid #f2f0ec',
-                  }}>
-                    <span style={{ width: 130 }}>{r.scenario_name || '—'}</span>
-                    <span style={{ width: 70 }}>{r.score_total ?? '—'} 分</span>
-                    <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>
-                      {r.created_at ? new Date(r.created_at).toLocaleString('zh-CN') : ''}
-                    </span>
+                  <div className="wb-panel">
+                    <div className="wb-panel-h">最近训练记录</div>
+                    {records.length === 0 && (
+                      <div className="wb-empty">暂无记录。</div>
+                    )}
+                    {records.slice(0, 12).map((r, i) => (
+                      <div key={i} className="wb-row">
+                        <span className="name" style={{ fontWeight: 400 }}>
+                          {r.scenario_name || '—'}
+                        </span>
+                        <span className="spacer" />
+                        <span className="mono">{r.score_total ?? '—'} 分</span>
+                        <span className="mono" style={{ color: 'var(--ink-4)' }}>
+                          {r.created_at
+                            ? new Date(r.created_at).toLocaleDateString('zh-CN')
+                            : ''}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </div>
               </>
             )}
           </>
         )}
 
-        {/* ── 训练趋势 ── */}
+        {/* ── 03 训练趋势 ── */}
         {tab === '训练趋势' && (
           <>
-            <div className="k" style={{ marginBottom: 10 }}>班级近 14 天平均分</div>
-            <AverageTrendChart points={trend?.points ?? []} height={260} />
+            <div className="wb-panel">
+              <div className="wb-panel-h">
+                <span>班级近 14 天平均分</span>
+                <span className="hint">折线为均分，柱状为训练次数</span>
+              </div>
+              <AverageTrendChart points={trend?.points ?? []} height={280} />
+            </div>
 
-            <div className="k" style={{ margin: '28px 0 10px' }}>班级六维均值</div>
-            <DimensionBarChart dims={trend?.dimensions ?? []} weakest={stats?.weakest} />
-
-            <div className="k" style={{ margin: '28px 0 10px' }}>案例练习分布</div>
-            <ScenarioUsageChart data={trend?.scenarios ?? []} />
+            <div className="wb-grid">
+              <div className="wb-panel">
+                <div className="wb-panel-h">
+                  <span>班级六维均值</span>
+                  <span className="hint">最弱项以朱红标示</span>
+                </div>
+                <DimensionBarChart
+                  dims={trend?.dimensions ?? []}
+                  weakest={stats?.weakest}
+                  height={260}
+                />
+              </div>
+              <div className="wb-panel">
+                <div className="wb-panel-h">案例练习分布</div>
+                <ScenarioUsageChart data={trend?.scenarios ?? []} height={260} />
+              </div>
+            </div>
           </>
         )}
 
-        {/* ── 内容查阅 ── */}
+        {/* ── 04 内容查阅 ── */}
         {tab === '内容查阅' && (
-          <>
-            <div className="k" style={{ marginBottom: 10 }}>技巧卡与伦理守则（教学参考）</div>
-            <input placeholder="按标题、摘要或分类搜索" value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              style={{ padding: '8px 12px', border: '1px solid #ddd', borderRadius: 6,
-                width: '100%', maxWidth: 360, marginBottom: 16 }} />
+          <div className="wb-panel">
+            <div className="wb-panel-h">
+              <span>技巧卡与伦理守则</span>
+              <span className="hint">共 {cards.length} 条</span>
+            </div>
+            <div className="wb-form">
+              <input
+                className="wb-input"
+                style={{ flex: 1, minWidth: 200 }}
+                placeholder="按标题、摘要或分类搜索"
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+              />
+            </div>
             {filteredCards.length === 0 && (
-              <p style={{ color: 'var(--ink-3)', fontSize: 13 }}>没有匹配的内容。</p>
+              <div className="wb-empty">
+                <b>没有匹配内容</b>
+                换个关键词试试，或清空搜索框查看全部。
+              </div>
             )}
             {filteredCards.map((c) => (
-              <div key={c.id} style={{ padding: '12px 14px', border: '1px solid #eee',
-                borderRadius: 8, marginBottom: 8 }}>
-                <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
-                  <b style={{ fontSize: 14 }}>{c.title}</b>
-                  <span style={{ fontSize: 12, color: '#D97706' }}>{c.category}</span>
-                  <span style={{ fontSize: 12, color: 'var(--ink-3)', marginLeft: 'auto' }}>{c.id}</span>
+              <div key={c.id} className="wb-row" style={{ alignItems: 'flex-start',
+                flexDirection: 'column', gap: 4 }}>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', width: '100%' }}>
+                  <span className="name">{c.title}</span>
+                  <span className="tag">{c.category}</span>
+                  <span className="spacer" />
+                  <span className="mono">{c.id}</span>
                 </div>
                 {c.summary && (
-                  <p style={{ fontSize: 13, color: 'var(--ink-3)', margin: '6px 0 0' }}>{c.summary}</p>
+                  <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-3)',
+                    lineHeight: 1.65 }}>
+                    {c.summary}
+                  </p>
                 )}
               </div>
             ))}
-          </>
+          </div>
         )}
       </div>
     </div>

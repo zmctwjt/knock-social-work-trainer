@@ -2756,3 +2756,117 @@ button:active:not(:disabled){transform:translateY(1px) scale(.985)}
   .frame,.shell{padding-left:12px;padding-right:12px}
   .wordmark .cn{font-size:20px}
 }
+
+/* ═══════════════════════════════════════════════════════════
+   工作台通用样式（教师端 / 管理端）
+   ───────────────────────────────────────────────────────────
+   与学生端（成长中心 P6、结算页 P4）共用同一套视觉规则：
+   衬线体大标题 + 等宽小字标签 + 纸色卡片 + 细分割线。
+   抽成公共类而不是每页内联，避免两端各写一套后逐渐走形。
+   ═══════════════════════════════════════════════════════════ */
+
+/* 页面头部：与学生端 p6-head 一致 */
+.wb-head{padding:var(--s5) 0 var(--s4);border-bottom:1px solid var(--rule)}
+.wb-head .k{font-family:var(--mono);font-size:10px;letter-spacing:.2em;
+  color:var(--proof);text-transform:uppercase}
+.wb-head h2{font-family:var(--serif);font-size:34px;font-weight:600;margin:8px 0 6px;
+  letter-spacing:-.01em;line-height:1.15}
+.wb-head .sub{font-size:13.5px;color:var(--ink-3);line-height:1.7;max-width:62ch}
+.wb-head .meta{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;color:var(--ink-4);
+  margin-top:10px}
+
+/* 视图切换：与学生端 viewtab 同款下划线标签 */
+.wb-tabs{display:flex;gap:2px;border-bottom:1px solid var(--rule);margin:var(--s4) 0 var(--s5);
+  overflow-x:auto;scrollbar-width:none}
+.wb-tabs::-webkit-scrollbar{display:none}
+.wb-tab{font-family:var(--sans);font-size:13px;background:none;border:none;cursor:pointer;
+  padding:11px 15px;color:var(--ink-3);border-bottom:2px solid transparent;
+  white-space:nowrap;min-height:44px;transition:color .15s,border-color .15s}
+.wb-tab:hover{color:var(--ink)}
+.wb-tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--proof);font-weight:500}
+.wb-tab .no{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;
+  color:var(--ink-4);margin-right:6px}
+.wb-tab[aria-selected="true"] .no{color:var(--proof)}
+
+/* 指标行：大数字 + 等宽标签，沿用 .metric 的排法 */
+.wb-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));
+  border-top:1px solid var(--rule);margin-bottom:var(--s5)}
+.wb-metric{padding:var(--s4) var(--s3) var(--s3) 0;border-left:1px solid var(--rule);
+  border-bottom:1px solid var(--rule)}
+.wb-metric:first-child{border-left:none;padding-left:0}
+.wb-metric .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;
+  color:var(--ink-3);text-transform:uppercase}
+.wb-metric .n{font-family:var(--mono);font-size:30px;font-weight:500;line-height:1.1;
+  color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-.02em;margin:6px 0 2px}
+.wb-metric .n.warn{color:var(--proof)}
+.wb-metric .d{font-size:11.5px;color:var(--ink-3)}
+
+/* 卡片：与学生端 chart-wrap 同款纸色+细边+轻阴影 */
+.wb-panel{background:var(--paper-raised);border:1px solid var(--rule);
+  box-shadow:var(--sh-1);padding:var(--s4);margin-bottom:var(--s4)}
+.wb-panel-h{font-family:var(--mono);font-size:10px;letter-spacing:.18em;
+  color:var(--ink-3);text-transform:uppercase;padding-bottom:var(--s3);
+  border-bottom:1px solid var(--rule);margin-bottom:var(--s4);
+  display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.wb-panel-h .hint{font-family:var(--sans);font-size:11px;letter-spacing:0;
+  text-transform:none;color:var(--ink-4)}
+
+/* 两列布局：主内容 + 侧栏，窄屏自动堆叠 */
+.wb-grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);
+  gap:var(--s4);align-items:start}
+@media (max-width:900px){.wb-grid{grid-template-columns:1fr}}
+
+/* 数据行：左侧标题右侧数值，替代手写的 flex 内联 */
+.wb-row{display:flex;align-items:center;gap:14px;padding:11px 0;
+  border-bottom:1px solid var(--rule);font-size:13px}
+.wb-row:last-child{border-bottom:none}
+.wb-row .name{font-weight:500;color:var(--ink)}
+.wb-row .mono{font-family:var(--mono);font-size:11px;letter-spacing:.06em;
+  color:var(--ink-3);font-variant-numeric:tabular-nums}
+.wb-row .spacer{flex:1}
+.wb-row .tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;
+  text-transform:uppercase;padding:2px 7px;border-radius:3px;
+  background:var(--paper-sunk);color:var(--ink-3)}
+.wb-row .tag.ok{background:var(--green-wash);color:var(--green-deep)}
+.wb-row .tag.warn{background:var(--proof-wash);color:var(--proof)}
+
+/* 可点击行：列表项作为按钮时用 */
+.wb-row-btn{width:100%;text-align:left;background:none;border:none;cursor:pointer;
+  font-family:var(--sans);min-height:44px;transition:background .12s}
+.wb-row-btn:hover{background:var(--paper-sunk)}
+
+/* 表单行：输入框与按钮对齐，窄屏换行 */
+.wb-form{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:var(--s4)}
+.wb-input{padding:9px 12px;border:1px solid var(--rule-strong);border-radius:var(--r-sm);
+  background:var(--paper-raised);font-family:var(--sans);font-size:13px;color:var(--ink);
+  min-height:40px}
+.wb-input:focus{outline:2px solid var(--green);outline-offset:1px}
+.wb-input::placeholder{color:var(--ink-4)}
+
+/* 分页条 */
+.wb-pager{display:flex;align-items:center;gap:10px;padding-top:var(--s3);
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--ink-3)}
+.wb-pager button{font-family:var(--sans);font-size:12.5px;padding:6px 14px;
+  border:1px solid var(--rule-strong);background:transparent;border-radius:var(--r-sm);
+  color:var(--ink-2);cursor:pointer;min-height:36px}
+.wb-pager button:hover:not(:disabled){border-color:var(--green);color:var(--green)}
+.wb-pager button:disabled{opacity:.4;cursor:not-allowed}
+
+/* 空状态：统一文案样式，避免每页各写一版 */
+.wb-empty{padding:var(--s6) 0;text-align:center;color:var(--ink-3);
+  font-size:13px;line-height:1.8}
+.wb-empty b{display:block;font-family:var(--serif);font-size:17px;color:var(--ink-2);
+  margin-bottom:6px;font-weight:600}
+
+/* 提示条 */
+.wb-alert{padding:11px 14px;border-radius:var(--r-sm);font-size:13px;line-height:1.6;
+  margin-bottom:var(--s4);border-left:3px solid var(--proof)}
+.wb-alert.err{background:var(--proof-wash);color:var(--proof)}
+.wb-alert.ok{background:var(--green-wash);color:var(--green-deep);border-left-color:var(--green)}
+.wb-alert.info{background:var(--paper-sunk);color:var(--ink-2);border-left-color:var(--rule-strong)}
+
+/* 工作台容器：.frame 是为训练页的三列 grid（导轨|正文|校样栏）设计的，
+   教师/管理页直接套会把内容挤进 76px 的第一列，所以单独定义一个容器。 */
+.wb-frame{max-width:1180px;margin:0 auto;padding:0 var(--s5);
+  display:block;grid-template-columns:none}
+@media (max-width:720px){.wb-frame{padding:0 16px}}

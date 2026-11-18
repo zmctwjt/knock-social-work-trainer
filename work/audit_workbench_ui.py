@@ -36,10 +36,17 @@ def login(cdp: CDP, user: str) -> None:
 
 def visit_tabs(cdp: CDP, tabs: list[str], must_contain: dict[str, str], who: str) -> None:
     for tab in tabs:
+        # 标签按钮内含 <span class="no">01</span> 序号，textContent 不等于纯标签名，
+        # 因此用 wb-tab 选择器 + 去掉序号后比较
         clicked = cdp.eval(
             """(() => {
-              const b = [...document.querySelectorAll('button')]
-                .find(x => x.textContent.trim() === '%s');
+              const want = '%s';
+              const b = [...document.querySelectorAll('button.wb-tab')]
+                .find(x => {
+                  const clone = x.cloneNode(true);
+                  clone.querySelectorAll('.no').forEach(n => n.remove());
+                  return clone.textContent.trim() === want;
+                });
               if (!b) return 'NO-TAB';
               b.click();
               return 'ok';
