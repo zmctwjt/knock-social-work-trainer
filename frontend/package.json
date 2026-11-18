@@ -1,0 +1,44 @@
+{
+  "name": "knock-social-work-trainer",
+  "private": true,
+  "version": "1.1.0",
+  "type": "module",
+  "description": "叩门 · 社工个案面谈 AI 陪练舱 | 依据民政部《社会工作方法 个案工作》（公告第 426 号）",
+  "scripts": {
+    "dev": "vite",
+    "server": "node server/index.mjs",
+    "build": "tsc -b && vite build",
+    "start": "npm run build && node server/index.mjs",
+    "serve": "node server/index.mjs",
+    "preview": "vite preview --port 4173",
+    "typecheck": "tsc --noEmit",
+    "validate": "python tools/validate.py",
+    "test:engine": "tsx src/smoke_test.ts",
+    "check": "python tools/check_paths.py",
+    "verify": "npm run check && npm run typecheck && npm run test:engine",
+    "check:backend": "tsx src/lib/backendCheck.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "echarts": "^6.1.0",
+    "echarts-for-react": "^3.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.2",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.14",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.9"
+  },
+  "engines": {
+    "node": ">=18.17"
+  }
+}

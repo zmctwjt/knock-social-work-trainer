@@ -1,0 +1,186 @@
+# 叩门 · 告警规则（12 条）
+#
+# 指标契约以 deliverables/backend/app/core/metrics.py 为准（Prometheus 抓取 /metrics）：
+#   http_requests_total{method,path,status}
+#   http_request_duration_seconds{method,path,status}      → *_bucket 用于分位
+#   ai_calls_total{provider,model,status}                   status=ok|failed|...
+#   ai_degraded_total{reason}                               降级（回落规则模式）次数
+#   ai_quota_used                                           当日已用 AI 配额
+#   breaker_state{model}                                    0=closed 1=half-open 2=open
+#   ai_call_duration_seconds{model}                         单次 AI 调用耗时
+#   breaker_open_total{model}                               熔断打开次数
+# 业务指标（training_completed_total / crisis_blocked_total / score_overall）由业务模块注册，
+# 未注册前对应面板与规则显示 N/A，不影响本文件加载。
+groups:
+  - name: knock-slo
+    interval: 30s
+    rules:
+      # ── 1. 服务存活（P0）──
+      - alert: KnockApiDown
+        expr: up{job=~"knock-api|knock-api-k8s"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          priority: P0
+          team: devops
+        annotations:
+          summary: "API 实例不可达（{{ $labels.instance }}）"
+          description: "Prometheus 连续 2 分钟抓取 /metrics 失败，可能 Pod 崩溃或网络策略阻断。"
+          runbook: "docs/08 §8.7.1 与 §8.7.6：先查 kubectl get pod 与 /readyz，再决定回滚。"
+
+      # ── 2. 5xx 比例（P1）：错误率 > 0.5% 持续 5 分钟 ──
+      - alert: KnockApiHighErrorRate
+        expr: |
+          (sum(rate(http_requests_total{status=~"5.."}[5m]))
+            / clamp_min(sum(rate(http_requests_total[5m])), 1e-9)) > 0.005
+        for: 5m
+        labels:
+          severity: critical
+          priority: P1
+          team: devops
+        annotations:
+          summary: "API 5xx 比例 {{ $value | humanizePercentage }} 超阈值 0.5%"
+          description: "触发错误预算消耗告警，先确认是否为单实例故障（按 instance 对比），再查 DB/AI 依赖。"
+          runbook: "docs/08 §8.7.6：查最近一次发布，必要时回滚。"
+
+      # ── 3. 非 AI 接口 P95 延迟（P2）：> 300 ms 持续 10 分钟 ──
+      - alert: KnockApiLatencyP95High
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(http_request_duration_seconds_bucket{
+              path!~".*/ai/.*"}[5m]))) > 0.3
+        for: 10m
+        labels:
+          severity: warning
+          priority: P2
+          team: devops
+        annotations:
+          summary: "非 AI 接口 P95 延迟 {{ $value | humanizeDuration }} 超过 SLO 300ms"
+          description: "先看 DB 慢查询与连接池等待，再看实例 CPU 是否被 AI 调用挤占。"
+          runbook: "docs/08 §8.7.2 与 §8.8。"
+
+      # ── 4. AI 接口 P95 延迟（P2）：> 6 s 持续 10 分钟 ──
+      - alert: KnockAiLatencyP95High
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(ai_call_duration_seconds_bucket[5m]))) > 6
+        for: 10m
+        labels:
+          severity: warning
+          priority: P2
+          team: devops
+        annotations:
+          summary: "AI 接口 P95 延迟 {{ $value | humanizeDuration }} 超过 SLO 6s"
+          description: "对比智谱侧耗时与网关排队耗时，判断是上游变慢还是本地并发不足。"
+          runbook: "docs/08 §8.7.1。"
+
+      # ── 5. AI 降级率（P2）：> 5% 持续 10 分钟 ──
+      - alert: KnockAiDegradeRateHigh
+        expr: |
+          sum(rate(ai_degraded_total[10m]))
+            / clamp_min(sum(rate(ai_calls_total[10m])), 1e-9) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          priority: P2
+          team: devops
+        annotations:
+          summary: "AI 降级率 {{ $value | humanizePercentage }} 超过 5%"
+          description: "降级＝回落规则模式，功能可用但体验下降；需同时看上游 429/5xx 与熔断状态。"
+          runbook: "docs/08 §8.7.1：检查智谱状态页与配额。"
+
+      # ── 6. AI 日配额接近上限（P2）：已用 > 90% × GLM_DAILY_CAP(800) ──
+      - alert: KnockAiQuotaNearLimit
+        expr: ai_quota_used > 720
+        for: 5m
+        labels:
+          severity: warning
+          priority: P2
+          team: devops
+        annotations:
+          summary: "AI 日配额已用 {{ $value }} 次，超过上限 800 的 90%"
+          description: "阈值 720 = 90% × GLM_DAILY_CAP。确认真实用量增长还是刷量；必要时调高配额或收紧单用户限额。"
+          runbook: "docs/08 §8.7.1 与 §7.5 成本滥用对策。"
+
+      # ── 7. 熔断器打开（P1）：任一模型处于 open ──
+      - alert: KnockAiBreakerOpen
+        expr: max(breaker_state) == 2
+        for: 2m
+        labels:
+          severity: critical
+          priority: P1
+          team: devops
+        annotations:
+          summary: "AI 网关熔断器处于打开状态（模型：{{ $labels.model }}）"
+          description: "上游连续失败触发熔断，请求正在降级为规则模式；需人工确认上游恢复后观察半开态。"
+          runbook: "docs/08 §8.7.1：3 步内判断上游是否恢复。"
+
+      # ── 8. 数据库连接接近上限（P2）：活跃连接 > 85% × max_connections(300) ──
+      - alert: KnockDbConnectionsSaturated
+        expr: |
+          mysql_global_status_threads_connected / 300 > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          priority: P2
+          team: devops
+        annotations:
+          summary: "MySQL 连接数 {{ $value | humanizePercentage }} 占 max_connections(300) 比例超 85%"
+          description: "通常由慢查询、长事务或连接泄漏引起；先用 SHOW PROCESSLIST 看是否存在大量 Sleep/idle 连接，再核对 DB_POOL_SIZE 与 DB_MAX_OVERFLOW 是否偏大。"
+          runbook: "docs/08 §8.7.2 与 §4.7 连接池核算。"
+
+      # ── 9. 磁盘空间不足（P1）──
+      - alert: KnockDiskSpaceLow
+        expr: |
+          (node_filesystem_avail_bytes{mountpoint="/", fstype!~"tmpfs|overlay|squashfs"}
+            / node_filesystem_size_bytes{mountpoint="/", fstype!~"tmpfs|overlay|squashfs"}) < 0.15
+        for: 10m
+        labels:
+          severity: critical
+          priority: P1
+          team: devops
+        annotations:
+          summary: "根分区可用空间 {{ $value | humanizePercentage }} < 15%"
+          description: "优先清理容器日志与 MySQL binlog、慢查询日志；删除 binlog 前先确认已完成备份（PURGE BINARY LOGS 仅保留最近 N 天），避免误删影响按时间点恢复。"
+          runbook: "docs/08 §8.7.4。"
+
+      # ── 10. TLS 证书 14 天内到期（P2）──
+      - alert: KnockCertExpiringSoon
+        expr: (probe_ssl_earliest_cert_expiry - time()) / 86400 < 14
+        for: 1h
+        labels:
+          severity: warning
+          priority: P2
+          team: devops
+        annotations:
+          summary: "证书 {{ $labels.instance }} 剩余 {{ $value | printf \"%.1f\" }} 天到期"
+          description: "cert-manager 应在 30 天前自动续期；若未续期需检查 ACME 账户与挑战类型。"
+          runbook: "docs/08 §8.7.5。"
+
+      # ── 11. TLS 证书 3 天内到期（P0）──
+      - alert: KnockCertExpiringCritical
+        expr: (probe_ssl_earliest_cert_expiry - time()) / 86400 < 3
+        for: 30m
+        labels:
+          severity: critical
+          priority: P0
+          team: devops
+        annotations:
+          summary: "证书 {{ $labels.instance }} 剩余不足 3 天，即将中断服务"
+          description: "立即手工导入备用证书并重载 Nginx，再排查自动续期失败原因。"
+          runbook: "docs/08 §8.7.5。"
+
+      # ── 12. 错误预算燃烧过快（P3 预警，供周会使用）──
+      - alert: KnockErrorBudgetBurning
+        expr: |
+          (sum(rate(http_requests_total{status=~"5.."}[1h]))
+            / clamp_min(sum(rate(http_requests_total[1h])), 1e-9)) > 0.0005
+        for: 1h
+        labels:
+          severity: info
+          priority: P3
+          team: devops
+        annotations:
+          summary: "近 1 小时 5xx 比例 {{ $value | humanizePercentage }}，按此速率月内将耗尽错误预算"
+          description: "不立即处置，纳入当周容量与稳定性复盘。"
+          runbook: "docs/08 §8.1.2 错误预算与燃尽策略。"

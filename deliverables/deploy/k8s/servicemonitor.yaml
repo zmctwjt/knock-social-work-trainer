@@ -1,0 +1,34 @@
+# ServiceMonitor：让 Prometheus Operator 自动发现 knock-api 的 /metrics
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: knock-api
+  namespace: knock-prod
+  labels:
+    app.kubernetes.io/name: knock-api
+    app.kubernetes.io/part-of: knock
+    # 让安装在不带 selector 的 Prometheus 也能选中本对象
+    release: prometheus
+spec:
+  namespaceSelector:
+    matchNames:
+      - knock-prod
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: knock-api
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
+      scheme: http
+      honorLabels: true
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: pod
+        - sourceLabels: [__meta_kubernetes_node_name]
+          targetLabel: node
+        - targetLabel: cluster
+          replacement: knock-prod
+        - targetLabel: env
+          replacement: prod

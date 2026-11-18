@@ -1,0 +1,72 @@
+# 本地联调用编排：api + mysql + redis。
+# 生产编排见 deploy/docker-compose.prod.yml（由运维维护，端口与 env 与本文件一致）。
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: knock-backend:local
+    environment:
+      APP_ENV: dev
+      DEBUG: "true"
+      LOG_JSON: "true"
+      DATABASE_URL: mysql+aiomysql://knock:knock@mysql:3306/knock?charset=utf8mb4
+      REDIS_URL: redis://redis:6379/0
+      AUTO_CREATE_SCHEMA: "false"
+      SEED_SCENARIOS_ON_STARTUP: "true"
+      GLM_API_KEY: ${GLM_API_KEY:-}
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-please-change-me}
+      CORS_ORIGINS: http://localhost:5173
+      RATE_LIMIT_ENABLED: "true"
+    ports:
+      - "8000:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+      - --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: knock
+      MYSQL_USER: knock
+      MYSQL_PASSWORD: knock
+    volumes:
+      - knock_mysql:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uknock", "-pknock"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - knock_redis:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  knock_mysql:
+  knock_redis:

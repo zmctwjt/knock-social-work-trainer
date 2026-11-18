@@ -1,0 +1,60 @@
+# 非敏感配置：与 deliverables/backend/app/core/config.py 的键名逐一对应
+# 键名契约（backend 确认）：无前缀、全大写蛇形、pydantic-settings 大小写不敏感
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: knock-api-config
+  namespace: knock-prod
+  labels:
+    app.kubernetes.io/name: knock-api
+    app.kubernetes.io/part-of: knock
+data:
+  # ── 应用 ──
+  APP_ENV: "prod"
+  DEBUG: "false"
+  API_V1_PREFIX: "/api/v1"
+  PORT: "8000"
+  WORKERS: "4"
+  LOG_LEVEL: "INFO"
+  LOG_JSON: "true"
+  BODY_LIMIT_BYTES: "524288"
+  CORS_ORIGINS: "https://www.knock.example.com,https://admin.knock.example.com"
+  ALLOWED_HOSTS: "api.knock.example.com,www.knock.example.com,admin.knock.example.com"
+  AUTO_CREATE_SCHEMA: "false"
+  SEED_SCENARIOS_ON_STARTUP: "true"
+  RATE_LIMIT_ENABLED: "true"
+  RATE_LIMIT_WINDOW_SEC: "60"
+
+  # ── 数据库（连接串含密码，见 Secret；此处只放池参数）──
+  DB_POOL_SIZE: "20"
+  DB_MAX_OVERFLOW: "10"
+  DB_ECHO: "false"
+
+  # ── AI 网关 ──
+  GLM_BASE_URL: "https://open.bigmodel.cn/api/paas/v4/chat/completions"
+  GLM_MODEL: "glm-4.7-flash"
+  GLM_FALLBACK_MODELS: "glm-4.5-flash,glm-4-flash"
+  GLM_TIMEOUT_MS: "30000"
+  GLM_DAILY_CAP: "800"
+  GLM_RPM_PER_IP: "20"
+  GLM_CONCURRENCY: "2"
+  GLM_CACHE_TTL_SEC: "600"
+  GLM_CACHE_MAX: "300"
+  GLM_BREAKER_FAILURE_THRESHOLD: "0.5"
+  GLM_BREAKER_MIN_SAMPLES: "10"
+  GLM_BREAKER_OPEN_SEC: "30"
+  GLM_MAX_RETRIES: "1"
+
+  # ── 认证（密钥在 Secret）──
+  JWT_ALGORITHM: "HS256"
+  JWT_ACCESS_TTL_MIN: "30"
+  JWT_REFRESH_TTL_DAYS: "7"
+  JWT_GUEST_TTL_HOURS: "24"
+  ARGON2_TIME_COST: "3"
+  ARGON2_MEMORY_COST: "65536"
+  ARGON2_PARALLELISM: "4"
+
+  # ── 可观测 ──
+  OTEL_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4317"
+  OTEL_SERVICE_NAME: "knock-backend"

@@ -1,0 +1,14 @@
+# 自愿中断保护：滚动升级与节点排水时至少保留 2 个可用副本（SLO 99.9% 的最低冗余）
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: knock-api
+  namespace: knock-prod
+  labels:
+    app.kubernetes.io/name: knock-api
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: knock-api
+  unhealthyPodEvictionPolicy: IfHealthyBudget

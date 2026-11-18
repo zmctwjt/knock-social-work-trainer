@@ -1,0 +1,60 @@
+# ── 依赖与运行时（体积大，不入库）──
+node_modules/
+.venv/
+venv/
+pyenv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ── 构建产物 ──
+dist/
+build/
+*.tsbuildinfo
+vite.out.log
+
+# ── 环境与密钥 ──
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+secret*.yaml
+
+# ── 数据与日志 ──
+*.db
+*.sqlite
+*.sqlite3
+logs/
+*.log
+mysql-data/
+
+# ── 编辑器与系统 ──
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ── 毕业设计存档（含个人材料，不公开）──
+src_extract/
+*.zip
+24252531XX*
+2425253224*
+运行说明.md
+叩门*.zip
+
+# ── work/ 只保留工具脚本，其余忽略 ──
+work/*
+!work/run_all.py
+!work/audit_permissions.py
+!work/audit_roles_ui.py
+!work/audit_role_landing.py
+!work/audit_extended_api.py
+!work/audit_workbench_ui.py
+!work/seed_demo_accounts.py
+!work/seed_training_data.py
+!work/launch_backend.py

@@ -1,0 +1,60 @@
+# 数据库迁移 Job：必须在 Deployment 滚动之前单独跑完（先兼容后切换）
+# 执行顺序：kubectl apply -f migrate-job.yaml → kubectl wait --for=condition=complete
+#          → kubectl set image deployment/knock-api ... → 观察 5% 灰度
+# 注意：Alembic 迁移脚本必须向前兼容（只加列/加表，不删不改类型），保证旧 Pod 仍可读。
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: knock-db-migrate
+  namespace: knock-prod
+  labels:
+    app.kubernetes.io/name: knock-migrate
+    app.kubernetes.io/part-of: knock
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 600
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: knock-migrate
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      imagePullSecrets:
+        - name: harbor-cred
+      containers:
+        - name: migrate
+          image: registry.example.com/knock/knock-api:1.0.0
+          command: ["alembic", "upgrade", "head"]
+          envFrom:
+            - configMapRef:
+                name: knock-api-config
+            - secretRef:
+                name: knock-api-secret
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: 32Mi

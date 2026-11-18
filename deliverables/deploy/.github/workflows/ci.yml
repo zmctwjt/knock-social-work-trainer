@@ -1,0 +1,263 @@
+name: ci
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "backend/**"
+      - "deploy/**"
+      - ".github/workflows/ci.yml"
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+  IMAGE_NAME: ghcr.io/${{ github.repository }}/knock-api
+  REGISTRY: ghcr.io
+
+jobs:
+  # ── 1. 静态检查：ruff + mypy ─────────────────────────
+  lint:
+    name: lint (ruff + mypy)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+      - name: Install dev deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff mypy
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+      - name: ruff check
+        run: ruff check . --output-format=github
+      - name: ruff format check
+        run: ruff format --check .
+      - name: mypy
+        run: mypy app --ignore-missing-imports --no-error-summary
+
+  # ── 2. 单元/集成测试：真实 MySQL 8.0 + Redis7 服务容器 ─
+  test:
+    name: test (pytest + mysql + redis)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root_test_pw
+          MYSQL_DATABASE: knock_test
+          MYSQL_USER: knock_test
+          MYSQL_PASSWORD: knock_test_pw
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping --silent"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+          --health-start-period 30s
+      redis:
+        image: redis:7.2.5-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      APP_ENV: test
+      DEBUG: "true"
+      AUTO_CREATE_SCHEMA: "false"
+      DATABASE_URL: mysql+aiomysql://knock_test:knock_test_pw@127.0.0.1:3306/knock_test?charset=utf8mb4
+      REDIS_URL: redis://localhost:6379/0
+      JWT_SECRET: test_only_secret_not_for_prod_0123456789
+      GLM_API_KEY: test-key-not-used
+      SEED_SCENARIOS_ON_STARTUP: "true"
+      RATE_LIMIT_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+      - name: Alembic upgrade
+        run: alembic upgrade head
+      - name: pytest
+        run: pytest -q --maxfail=1 --cov=app --cov-report=term-missing --cov-fail-under=60
+
+  # ── 3. 构建并推送镜像（Buildx + 层缓存）─────────────
+  build:
+    name: buildx build & push
+    runs-on: ubuntu-24.04
+    needs: [lint, test]
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set image tag
+        id: meta
+        run: |
+          SHORT_SHA="${GITHUB_SHA::12}"
+          echo "image=${IMAGE_NAME}:${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "tag=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Login to registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          target: runtime
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
+            ${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha,scope=knock-api
+          cache-to: type=gha,mode=max,scope=knock-api
+          provenance: true
+          sbom: true
+
+  # ── 4. 镜像与依赖漏洞扫描（HIGH/CRITICAL 即失败）─────
+  scan:
+    name: trivy scan
+    runs-on: ubuntu-24.04
+    needs: [build]
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Login to registry (read)
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Trivy image scan (gate)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ${{ needs.build.outputs.image }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+      - name: Trivy SARIF report
+        if: always()
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ${{ needs.build.outputs.image }}
+          format: sarif
+          output: trivy-results.sarif
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+      - name: "Trivy config scan (IaC: k8s / compose / Dockerfile)"
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          scan-type: config
+          scan-ref: ./deploy
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+
+  # ── 5. 部署：仅 main 分支 + 环境审批 ────────────────
+  deploy:
+    name: deploy (staging→prod approval)
+    runs-on: ubuntu-24.04
+    needs: [build, scan]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    environment:
+      name: production
+      url: https://api.knock.example.com/healthz
+    steps:
+      - uses: actions/checkout@v4
+      - name: Render manifests
+        run: |
+          set -euo pipefail
+          mkdir -p rendered
+          IMAGE="${{ needs.build.outputs.image }}"
+          sed "s|registry.example.com/knock/knock-api:1.0.0|${IMAGE}|" \
+            deploy/k8s/deployment.yaml > rendered/deployment.yaml
+          sed "s|registry.example.com/knock/knock-api:1.0.0|${IMAGE}|" \
+            deploy/k8s/migrate-job.yaml > rendered/migrate-job.yaml
+          echo "IMAGE=${IMAGE}" >> "$GITHUB_ENV"
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG_PROD }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+      - name: Apply namespace/scm/config
+        run: |
+          kubectl apply -f deploy/k8s/namespace.yaml
+          kubectl apply -f deploy/k8s/configmap.yaml
+          kubectl apply -f deploy/k8s/secret.example.yaml --dry-run=client -o yaml >/dev/null
+          kubectl apply -f deploy/k8s/service.yaml
+          kubectl apply -f deploy/k8s/pdb.yaml
+          kubectl apply -f deploy/k8s/hpa.yaml
+          kubectl apply -f deploy/k8s/servicemonitor.yaml
+      - name: Run DB migration
+        run: |
+          kubectl -n knock-prod delete job knock-db-migrate --ignore-not-found
+          kubectl apply -f rendered/migrate-job.yaml
+          kubectl -n knock-prod wait --for=condition=complete job/knock-db-migrate --timeout=300s
+      - name: Rollout API
+        run: |
+          kubectl apply -f rendered/deployment.yaml
+          kubectl -n knock-prod rollout status deployment/knock-api --timeout=300s
+      - name: Apply ingress
+        run: kubectl apply -f deploy/k8s/ingress.yaml
+      - name: Smoke test
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 10); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" https://api.knock.example.com/healthz || true)
+            echo "attempt $i -> $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 6
+          done
+          echo "health check failed"; exit 1
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          kubectl -n knock-prod rollout undo deployment/knock-api
+          kubectl -n knock-prod rollout status deployment/knock-api --timeout=180s

@@ -1,0 +1,13 @@
+# 交付物仓库内不提交的敏感/生成文件
+.env
+.env.*
+!.env.example
+nginx/certs/*.pem
+nginx/certs/*.key
+nginx/certs/*.crt
+grafana/dashboard.local.json
+*.log
+.DS_Store
+
+# 前端构建产物由 CI 产出，不入库
+static/dist/

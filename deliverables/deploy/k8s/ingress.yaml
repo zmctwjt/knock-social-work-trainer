@@ -1,0 +1,99 @@
+# Ingress：TLS 由 cert-manager 自动签发，限流与超时在入口层生效
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: knock-ingress
+  namespace: knock-prod
+  labels:
+    app.kubernetes.io/name: knock-api
+    app.kubernetes.io/part-of: knock
+  annotations:
+    # ── TLS ──
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # ── 跳转与协议 ──
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    # ── 请求体与超时（AI 流式响应 60s）──
+    nginx.ingress.kubernetes.io/proxy-body-size: "2m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "5"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    # ── 限流：40 rps/实例，突发 80；连接数 50 ──
+    nginx.ingress.kubernetes.io/limit-rps: "40"
+    nginx.ingress.kubernetes.io/limit-burst: "80"
+    nginx.ingress.kubernetes.io/limit-connections: "50"
+    nginx.ingress.kubernetes.io/limit-whitelist: "10.0.0.0/8,172.16.0.0/12"
+    # ── 压缩 ──
+    nginx.ingress.kubernetes.io/enable-brotli: "true"
+    nginx.ingress.kubernetes.io/brotli-level: "5"
+    nginx.ingress.kubernetes.io/enable-gzip: "true"
+    # ── 安全响应头（用 more_set_headers 覆盖而非叠加，避免重复头）──
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "Strict-Transport-Security: max-age=31536000; includeSubDomains; preload";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-Frame-Options: DENY";
+      more_set_headers "Referrer-Policy: strict-origin-when-cross-origin";
+      more_set_headers "Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()";
+      more_set_headers "Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'";
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.knock.example.com
+        - www.knock.example.com
+        - admin.knock.example.com
+      secretName: knock-prod-tls
+  rules:
+    - host: api.knock.example.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: knock-api
+                port:
+                  number: 8000
+          - path: /healthz
+            pathType: Exact
+            backend:
+              service:
+                name: knock-api
+                port:
+                  number: 8000
+          - path: /readyz
+            pathType: Exact
+            backend:
+              service:
+                name: knock-api
+                port:
+                  number: 8000
+    - host: www.knock.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: knock-web
+                port:
+                  number: 8080
+    - host: admin.knock.example.com
+      http:
+        paths:
+          - path: /admin-api
+            pathType: Prefix
+            backend:
+              service:
+                name: knock-api
+                port:
+                  number: 8000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: knock-web
+                port:
+                  number: 8080

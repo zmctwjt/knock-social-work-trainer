@@ -1,0 +1,47 @@
+# 生产命名空间与配额：把「资源上限」写死在集群侧，避免单服务失控拖垮节点
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: knock-prod
+  labels:
+    name: knock-prod
+    env: prod
+    app.kubernetes.io/part-of: knock
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: knock-quota
+  namespace: knock-prod
+spec:
+  hard:
+    requests.cpu: "8"
+    requests.memory: 16Gi
+    limits.cpu: "24"
+    limits.memory: 32Gi
+    pods: "40"
+    services: "10"
+    configmaps: "20"
+    secrets: "20"
+    persistentvolumeclaims: "5"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: knock-defaults
+  namespace: knock-prod
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 500m
+        memory: 512Mi
+      defaultRequest:
+        cpu: 100m
+        memory: 128Mi
+      max:
+        cpu: "4"
+        memory: 4Gi
