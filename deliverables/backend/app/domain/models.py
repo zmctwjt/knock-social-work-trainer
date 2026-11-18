@@ -487,3 +487,40 @@ class TeacherComment(Base, TimestampMixin):
     level: Mapped[str] = mapped_column(String(16), nullable=False, default="good")
     # 是否已读（学生端可提示"老师有新点评"）
     read_by_learner: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+
+class AdminAuditLog(Base):
+    """管理操作审计。
+
+    记录"谁在什么时候对什么做了什么"，用于追责与排障。
+    与 AiAuditLog 的区别：那个记模型调用，这个记**人对数据的改动**。
+
+    设计取舍：
+    - 不记录修改前后的完整对象（可能含隐私），只记关键字段与摘要；
+    - `target_type + target_id` 便于按对象回溯整条变更链；
+    - 不做外键约束到 target：目标可能被物理删除，日志必须留存。
+    """
+
+    __tablename__ = "admin_audit_log"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    # 操作者
+    actor_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True, index=True)
+    actor_name: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    actor_role: Mapped[str] = mapped_column(String(16), nullable=False, default="")
+    # 动作：account.create / account.toggle / comment.delete / card.upsert ...
+    action: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    # 目标对象
+    target_type: Mapped[str] = mapped_column(String(32), nullable=False, default="")
+    target_id: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    # 摘要（不含敏感明文）
+    summary: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    request_id: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, nullable=False
+    )
+
+    __table_args__ = (
+        Index("ix_admin_audit_created_at", "created_at"),
+        Index("ix_admin_audit_target", "target_type", "target_id"),
+    )

@@ -249,3 +249,75 @@ async def test_export_csv_denied_for_student(api):
     _, _, _, l_headers, _, _ = await _teacher_with_learner(application, client)
     resp = await client.get("/api/v1/teacher/export.csv", headers=l_headers)
     assert resp.status_code == 403
+
+
+# ── 管理操作审计 ────────────────────────────────────────────
+async def _admin_headers(application, client) -> dict[str, str]:
+    await seed_account(
+        application, username="aroot", nickname="审计管理员", role=Role.ADMIN
+    )
+    token = (await login(client, "aroot"))["tokens"]["access_token"]
+    return auth(token)
+
+
+@pytest.mark.asyncio
+async def test_admin_action_is_audited(api):
+    """管理操作必须留痕：谁、什么时候、对谁做了什么。"""
+    application, client = await api()
+    headers = await _admin_headers(application, client)
+
+    created = await client.post(
+        "/api/v1/admin/accounts", headers=headers,
+        json={"username": "auditme", "password": "Audit@12345",
+              "nickname": "被审计者", "role": "student"},
+    )
+    assert created.status_code == 200
+    aid = created.json()["data"]["id"]
+
+    await client.patch(
+        f"/api/v1/admin/accounts/{aid}/active", headers=headers, json={"active": False}
+    )
+
+    logs = (await client.get(
+        "/api/v1/admin/audit-logs?limit=20", headers=headers
+    )).json()["data"]
+    actions = [x["action"] for x in logs["items"]]
+    assert "account.create" in actions, "新建账号未留痕"
+    assert "account.toggle" in actions, "启停账号未留痕"
+
+    create_log = next(x for x in logs["items"] if x["action"] == "account.create")
+    assert create_log["actor_name"] == "审计管理员"
+    assert create_log["action_label"] == "新建账号"
+    assert "auditme" in create_log["summary"]
+
+
+@pytest.mark.asyncio
+async def test_audit_does_not_leak_password(api):
+    """审计摘要不能包含口令明文。"""
+    application, client = await api()
+    headers = await _admin_headers(application, client)
+
+    await client.post(
+        "/api/v1/admin/accounts", headers=headers,
+        json={"username": "leaktest", "password": "SuperSecret@123",
+              "nickname": "泄露测试", "role": "student"},
+    )
+
+    logs = (await client.get(
+        "/api/v1/admin/audit-logs?limit=20", headers=headers
+    )).json()["data"]
+    blob = " ".join(x["summary"] for x in logs["items"])
+    assert "SuperSecret" not in blob, "审计摘要泄露了口令"
+    assert "password" not in blob.lower() or "***" in blob, "口令字段未打码"
+
+
+@pytest.mark.asyncio
+async def test_audit_logs_admin_only(api):
+    """学生与教师都不能读审计日志。"""
+    application, client = await api()
+    await _admin_headers(application, client)
+    await seed_account(application, username="astu", nickname="学生")
+
+    s_token = (await login(client, "astu"))["tokens"]["access_token"]
+    resp = await client.get("/api/v1/admin/audit-logs", headers=auth(s_token))
+    assert resp.status_code == 403

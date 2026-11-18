@@ -62,6 +62,13 @@ interface AiLog {
   latency_ms: number; degrade_reason: string | null;
   used_ai: boolean; cache_hit: boolean; created_at: string | null;
 }
+interface AuditRow {
+  id: string; actor_name: string; actor_role: string;
+  action: string; action_label: string;
+  target_type: string; target_id: string;
+  summary: string; created_at: string | null;
+}
+
 interface AiLogList {
   items: AiLog[]; total: number; all_total: number;
   success_rate: number; avg_latency_ms: number;
@@ -75,6 +82,7 @@ const TABS = [
   { key: '内容维护', no: '04' },
   { key: '判定词表', no: '05' },
   { key: '台词节点', no: '06' },
+  { key: '操作审计', no: '07' },
 ] as const;
 type Tab = (typeof TABS)[number]['key'];
 
@@ -100,6 +108,7 @@ export default function AdminPage() {
   const [scenarios, setScenarios] = useState<ScenarioRow[]>([]);
   const [cards, setCards] = useState<CardRow[]>([]);
   const [aiLogs, setAiLogs] = useState<AiLogList | null>(null);
+  const [audits, setAudits] = useState<AuditRow[]>([]);
   const [msg, setMsg] = useState('');
   const [msgKind, setMsgKind] = useState<'ok' | 'err'>('ok');
   const [denied, setDenied] = useState(false);
@@ -154,6 +163,9 @@ export default function AdminPage() {
       apiGet<{ items: CardRow[] }>('/api/v1/knowledge/cards'),
       apiGet<AiLogList>('/api/v1/admin/ai-logs?limit=50'),
     ]);
+    void apiGet<{ items: AuditRow[] }>('/api/v1/admin/audit-logs?limit=100').then((r) => {
+      setAudits(r?.items ?? []);
+    });
     setOverview(o);
     setAccounts(a?.items ?? []);
     setAccMeta({ total: a?.total ?? 0, pages: a?.pages ?? 0 });
@@ -846,6 +858,43 @@ export default function AdminPage() {
               ))}
             </div>
           </>
+        )}
+
+        {/* ── 07 操作审计 ── */}
+        {tab === '操作审计' && (
+          <div className="wb-panel">
+            <div className="wb-panel-h">
+              <span>管理操作审计</span>
+              <span className="hint">共 {audits.length} 条 · 最近 100 条</span>
+            </div>
+            <p style={{ fontSize: 12.5, color: 'var(--ink-3)', lineHeight: 1.7,
+              margin: '0 0 12px' }}>
+              记录账号启停、内容增删、词表与台词修改等管理动作，
+              便于追责与排查。摘要已对口令等敏感字段打码。
+            </p>
+            {audits.length === 0 && (
+              <div className="wb-empty">
+                <b>暂无审计记录</b>
+                执行一次管理操作（如新建账号、下架案例）后会出现。
+              </div>
+            )}
+            {audits.map((a) => (
+              <div key={a.id} className="wb-row">
+                <span className="tag">{a.action_label}</span>
+                <span className="name">{a.actor_name}</span>
+                <span className="mono" style={{ maxWidth: 380, overflow: 'hidden',
+                  textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {a.summary || '—'}
+                </span>
+                <span className="spacer" />
+                <span className="mono" style={{ color: 'var(--ink-4)' }}>
+                  {a.created_at
+                    ? new Date(a.created_at).toLocaleString('zh-CN')
+                    : ''}
+                </span>
+              </div>
+            ))}
+          </div>
         )}
 
         {/* ── 06 台词节点 ── */}

@@ -33,6 +33,7 @@ from app.domain.schemas import (
     ScriptLinePatch,
 )
 from app.services import (
+    admin_audit_service,
     analytics_service,
     comment_service,
     role_service,
@@ -124,6 +125,14 @@ async def admin_create_account(
         nickname=payload.nickname,
         role=payload.role,
     )
+    await admin_audit_service.record(
+        session,
+        actor=account,
+        action="account.create",
+        target_type="account",
+        target_id=out.id,
+        payload={"username": payload.username, "role": payload.role},
+    )
     return ok(out.model_dump(), message="账号已创建")
 
 
@@ -137,6 +146,14 @@ async def admin_set_active(
     out = await role_service.admin_set_active(
         session, account_id=account_id, active=payload.active
     )
+    await admin_audit_service.record(
+        session,
+        actor=account,
+        action="account.toggle",
+        target_type="account",
+        target_id=account_id,
+        payload={"active": payload.active},
+    )
     return ok(out.model_dump(), message="已更新")
 
 
@@ -146,6 +163,14 @@ async def admin_upsert_scenario(
     payload: ScenarioUpsertRequest, account: CurrentUser, session: SessionDep
 ):
     out = await role_service.upsert_scenario(session, payload)
+    await admin_audit_service.record(
+        session,
+        actor=account,
+        action="scenario.upsert",
+        target_type="scenario",
+        target_id=payload.id,
+        payload={"name": payload.name, "active": out.active},
+    )
     return ok(out.model_dump(), message="案例已保存")
 
 
@@ -153,7 +178,15 @@ async def admin_upsert_scenario(
 async def admin_archive_scenario(
     scenario_id: str, account: CurrentUser, session: SessionDep
 ):
-    return ok((await role_service.archive_scenario(session, scenario_id)).model_dump())
+    result = await role_service.archive_scenario(session, scenario_id)
+    await admin_audit_service.record(
+        session,
+        actor=account,
+        action="scenario.archive",
+        target_type="scenario",
+        target_id=scenario_id,
+    )
+    return ok(result.model_dump())
 
 
 @admin_router.post("/cards", summary="新建或编辑技巧卡")
@@ -161,12 +194,28 @@ async def admin_upsert_card(
     payload: CardUpsertRequest, account: CurrentUser, session: SessionDep
 ):
     out = await role_service.upsert_card(session, payload)
+    await admin_audit_service.record(
+        session,
+        actor=account,
+        action="card.upsert",
+        target_type="card",
+        target_id=payload.id,
+        payload={"title": payload.title, "category": payload.category},
+    )
     return ok(out.model_dump(), message="技巧卡已保存")
 
 
 @admin_router.delete("/cards/{card_id}", summary="删除技巧卡")
 async def admin_delete_card(card_id: str, account: CurrentUser, session: SessionDep):
-    return ok((await role_service.delete_card(session, card_id)).model_dump())
+    result = await role_service.delete_card(session, card_id)
+    await admin_audit_service.record(
+        session,
+        actor=account,
+        action="card.delete",
+        target_type="card",
+        target_id=card_id,
+    )
+    return ok(result.model_dump())
 
 
 # ── 管理端：系统 ────────────────────────────────────────────
@@ -198,6 +247,14 @@ async def admin_add_rule_word(
     out = await rule_word_service.add_word(
         session, group=payload.group, word=payload.word, note=payload.note
     )
+    await admin_audit_service.record(
+        session,
+        actor=account,
+        action="rule_word.add",
+        target_type="rule_word",
+        target_id=payload.word,
+        payload={"group": payload.group},
+    )
     return ok(out, message="词条已追加")
 
 
@@ -205,7 +262,15 @@ async def admin_add_rule_word(
 async def admin_remove_rule_word(
     word_id: uuid.UUID, account: CurrentUser, session: SessionDep
 ):
-    return ok(await rule_word_service.remove_custom_word(session, word_id))
+    result = await rule_word_service.remove_custom_word(session, word_id)
+    await admin_audit_service.record(
+        session,
+        actor=account,
+        action="rule_word.delete",
+        target_type="rule_word",
+        target_id=word_id,
+    )
+    return ok(result)
 
 
 @admin_router.delete("/rule-words/{group}/{word}", summary="禁用词条")
@@ -213,6 +278,14 @@ async def admin_disable_rule_word(
     group: str, word: str, account: CurrentUser, session: SessionDep
 ):
     out = await rule_word_service.disable_word(session, group=group, word=word)
+    await admin_audit_service.record(
+        session,
+        actor=account,
+        action="rule_word.disable",
+        target_type="rule_word",
+        target_id=word,
+        payload={"group": group},
+    )
     return ok(out, message="词条已禁用")
 
 
@@ -234,6 +307,14 @@ async def admin_create_script_line(
         emotion_bucket=payload.emotion_bucket,
         scenario_id=payload.scenario_id,
         order_index=payload.order_index,
+    )
+    await admin_audit_service.record(
+        session,
+        actor=account,
+        action="script_line.add",
+        target_type="script_line",
+        target_id=payload.scenario_id or "通用",
+        payload={"bucket": payload.emotion_bucket, "text": payload.text},
     )
     return ok(out, message="台词已新增")
 
@@ -306,6 +387,14 @@ async def admin_bulk_active(
         except AppError as exc:
             failed += 1
             messages.append(f"{account_id}: {exc.message}")
+    await admin_audit_service.record(
+        session,
+        actor=account,
+        action="account.bulk_active",
+        target_type="account",
+        target_id="bulk",
+        payload={"active": payload.active, "updated": updated, "failed": failed},
+    )
     return ok(
         BulkResultOut(updated=updated, failed=failed, messages=messages).model_dump(),
         message=f"已更新 {updated} 个账号",
@@ -323,6 +412,14 @@ async def teacher_create_comment(
     out = await comment_service.create_comment(
         session, account, record_id=record_id, content=payload.content, level=payload.level
     )
+    await admin_audit_service.record(
+        session,
+        actor=account,
+        action="comment.create",
+        target_type="comment",
+        target_id=out.id,
+        payload={"record_id": str(record_id), "level": payload.level},
+    )
     return ok(out.model_dump(), message="点评已发布")
 
 
@@ -338,6 +435,13 @@ async def teacher_delete_comment(
     comment_id: uuid.UUID, account: CurrentUser, session: SessionDep
 ):
     await comment_service.delete_comment(session, account, comment_id)
+    await admin_audit_service.record(
+        session,
+        actor=account,
+        action="comment.delete",
+        target_type="comment",
+        target_id=comment_id,
+    )
     return ok(None, message="点评已删除")
 
 
@@ -381,4 +485,18 @@ async def teacher_export_csv(account: CurrentUser, session: SessionDep):
             # 前端 fetch 读不到 Content-Disposition 除非显式暴露
             "Access-Control-Expose-Headers": "Content-Disposition",
         },
+    )
+
+
+@admin_router.get("/audit-logs", summary="管理操作审计日志")
+async def admin_audit_logs(
+    account: CurrentUser,
+    session: SessionDep,
+    limit: int = 50,
+    action: str | None = None,
+):
+    return ok(
+        await admin_audit_service.list_logs(
+            session, limit=limit, action=action
+        )
     )
