@@ -93,7 +93,7 @@ mypy 开启 `disallow_untyped_defs`、`disallow_incomplete_defs`、`no_implicit_
 python -m ruff check app tests scripts   # 必须零告警
 python -m ruff format --check app tests scripts
 python -m mypy app                       # 必须零错误
-python -m pytest -q                      # 86 个用例必须全绿
+python -m pytest -q                      # 162 个用例必须全绿
 ```
 
 ## C.4 测试规范

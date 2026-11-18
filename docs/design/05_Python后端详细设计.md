@@ -54,7 +54,7 @@ backend/
     infra/                   db session redis cache
     tasks/                   异步任务预留（二期）
   alembic/                   env.py script.py.mako versions/0001_initial_schema.py
-  tests/                     conftest helpers 与 11 个用例模块
+  tests/                     conftest helpers 与 18 个用例模块（162 个用例）
   scripts/                   seed.py smoke.py gen_api_doc.py dev_inspect.py
   Dockerfile  docker-compose.yml  requirements.txt  pyproject.toml  Makefile
 ```
