@@ -135,6 +135,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.info("app_stopped")
 
 
+def _docs_allowed(cfg: Settings) -> bool:
+    """交互文档只在非生产环境、或显式开启时才挂载。"""
+    if getattr(cfg, "docs_enabled", False):
+        return True
+    return not cfg.is_prod
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     cfg = settings or get_settings()
     app = FastAPI(
@@ -142,9 +149,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         description=DESCRIPTION,
         version=__version__,
         lifespan=lifespan,
-        docs_url="/docs",
+        # 生产环境关闭交互文档：/docs 会把全部路由、参数、错误码摊开给任何人看，
+        # 等于给攻击者一份接口地图。需要时用 DOCS_ENABLED 显式打开。
+        docs_url="/docs" if _docs_allowed(cfg) else None,
         redoc_url=None,
-        openapi_url="/openapi.json",
+        openapi_url="/openapi.json" if _docs_allowed(cfg) else None,
     )
     app.state.settings = cfg
     app.state.started_at = time.time()

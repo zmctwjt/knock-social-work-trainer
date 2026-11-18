@@ -241,3 +241,35 @@ async def test_html_response_gets_web_csp(api):
         import shutil
 
         shutil.rmtree(dist, ignore_errors=True)
+
+
+# ── 六、生产环境不暴露交互文档 ────────────────────────────────
+def test_docs_disabled_in_prod(monkeypatch):
+    """/docs 与 /openapi.json 会把全部路由与参数摊开，生产环境必须关闭。"""
+    app = create_app(_prod(monkeypatch))
+    paths = [getattr(r, "path", "") for r in app.routes]
+    assert "/docs" not in paths, "生产环境不应挂载 /docs"
+    assert "/openapi.json" not in paths, "生产环境不应暴露 openapi.json"
+
+
+def test_docs_available_in_dev(monkeypatch):
+    """开发环境需要文档来调试，不能一并关掉。"""
+    app = create_app(_make(monkeypatch, "dev"))
+    paths = [getattr(r, "path", "") for r in app.routes]
+    assert "/docs" in paths
+    assert "/openapi.json" in paths
+
+
+def test_docs_can_be_enabled_explicitly(monkeypatch):
+    """确有需要时（如对内的生产调试）可显式打开。"""
+    settings = _prod(monkeypatch, DOCS_ENABLED="true")
+    app = create_app(settings)
+    paths = [getattr(r, "path", "") for r in app.routes]
+    assert "/docs" in paths
+
+
+def test_health_does_not_leak_pid(monkeypatch):
+    """存活探针不应暴露进程号等内部拓扑信息。"""
+    from app.domain.schemas import HealthOut
+
+    assert "pid" not in HealthOut.model_fields, "HealthOut 不应包含 pid 字段"

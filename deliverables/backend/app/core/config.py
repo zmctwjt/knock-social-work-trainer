@@ -44,6 +44,8 @@ class Settings(BaseSettings):
     seed_scenarios_on_startup: bool = True
     # 留空表示不托管前端；指向已构建的静态目录即可由后端同源托管（单端口演示）
     static_dir: str = ""
+    # 生产环境默认关闭 /docs 与 /openapi.json，需要时显式打开
+    docs_enabled: bool = False
 
     # ── 数据库 ───────────────────────────────────────────
     database_url: str = "sqlite+aiosqlite:///./knock_dev.db"

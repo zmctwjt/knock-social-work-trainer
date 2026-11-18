@@ -426,7 +426,6 @@ class HealthOut(BaseModel):
     version: str
     environment: str
     uptime_sec: int
-    pid: int
 
 
 class ReadyCheck(BaseModel):

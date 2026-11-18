@@ -26,11 +26,12 @@ router = APIRouter(tags=["运维"])
 async def healthz(request: Request):
     settings = get_settings_from(request)
     started = getattr(request.app.state, "started_at", time.time())
+    # 不暴露 pid：进程号属于内部拓扑信息，对排障价值有限，
+    # 但能被用来推断同机其他服务或做侧信道观察。
     payload = HealthOut(
         version=__version__,
         environment=settings.app_env,
         uptime_sec=int(time.time() - started),
-        pid=os.getpid(),
     )
     return ok(payload)
 
