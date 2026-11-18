@@ -195,3 +195,57 @@ async def test_only_author_or_admin_can_delete(api):
     # 作者本人可以删
     ok = await client.delete(f"/api/v1/teacher/comments/{cid}", headers=t_headers)
     assert ok.status_code == 200
+
+
+# ── 成绩导出 ────────────────────────────────────────────────
+@pytest.mark.asyncio
+async def test_export_csv_structure(api):
+    """导出 CSV：表头正确、带 BOM、无空行、只含已结算记录。"""
+    application, client = await api()
+    _, _, t_headers, _, _, _ = await _teacher_with_learner(application, client)
+
+    resp = await client.get("/api/v1/teacher/export.csv", headers=t_headers)
+    assert resp.status_code == 200
+    assert "text/csv" in resp.headers["content-type"]
+    assert "attachment" in resp.headers["content-disposition"]
+
+    raw = resp.content
+    # BOM 让 Excel 正确识别 UTF-8，否则中文全乱码
+    assert raw.startswith(b"\xef\xbb\xbf"), "缺少 UTF-8 BOM"
+
+    text = raw.decode("utf-8-sig")
+    lines = text.strip().split("\n")
+    assert lines[0].startswith("用户名,姓名,案例编号"), f"表头异常: {lines[0][:40]}"
+    assert len(lines) == 2, f"应为表头 + 1 条记录，实际 {len(lines)} 行"
+    # 表头自带换行会多出空行——这是真实的 CSV 缺陷
+    assert all(line.strip() for line in lines), "存在空行"
+
+
+@pytest.mark.asyncio
+async def test_export_csv_only_own_learners(api):
+    """导出只包含名师名下学员，不会泄漏他人成绩。"""
+    application, client = await api()
+    _, learner, t_headers, _, _, _ = await _teacher_with_learner(application, client)
+
+    # 另一个无关学员也有一条成绩
+    await seed_account(application, username="cxo", nickname="外人")
+    o_headers = auth((await login(client, "cxo"))["tokens"]["access_token"])
+    created = await create_session(client, o_headers, scenario_id="W-01")
+    sid = created["id"]
+    await submit_turn(client, o_headers, sid, text="您好。")
+    await client.post(f"/api/v1/sessions/{sid}/stages/1/score", headers=o_headers, json={})
+    await client.post(f"/api/v1/sessions/{sid}/finish", headers=o_headers, json={})
+
+    resp = await client.get("/api/v1/teacher/export.csv", headers=t_headers)
+    text = resp.content.decode("utf-8-sig")
+    assert "clearn" in text, "应包含名下学员"
+    assert "cxo" not in text, "不应包含他人学员的成绩"
+
+
+@pytest.mark.asyncio
+async def test_export_csv_denied_for_student(api):
+    """学生不能导出班级成绩。"""
+    application, client = await api()
+    _, _, _, l_headers, _, _ = await _teacher_with_learner(application, client)
+    resp = await client.get("/api/v1/teacher/export.csv", headers=l_headers)
+    assert resp.status_code == 403

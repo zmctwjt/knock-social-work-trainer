@@ -31,6 +31,7 @@
 | 学员画像 | 六维雷达、14 天进步曲线、案例分布、最近训练记录 |
 | 训练趋势 | 班级均分趋势（双轴）、六维均值、案例练习分布 |
 | **教师点评** | 对学员单次训练写点评（表现良好/需关注/需干预），学员在成长中心可见 |
+| **成绩导出** | 一键导出班级成绩 CSV（含六维明细），Excel 直接打开不乱码 |
 | 内容查阅 | 检索技巧卡与伦理守则作为教学参考 |
 
 ### 管理端
@@ -56,7 +57,7 @@
 | 鉴权 | PyJWT（access/refresh）+ Argon2id 口令哈希 + RBAC 四角色 |
 | AI | httpx 自建网关对接智谱 GLM-4.7-Flash（含降级链） |
 | 观测 | structlog · Prometheus · OpenTelemetry（可选） |
-| 测试 | pytest（151 用例）+ 9 个端到端审查脚本 |
+| 测试 | pytest（154 用例）+ 9 个端到端审查脚本 |
 
 ---
 
@@ -230,6 +231,7 @@ CI（`.github/workflows/ci.yml`）在每次推送时运行三个 job：
 | 教师 | `/api/v1/teacher/{learners,stats,trend,learners/{id}/detail}` |
 | 管理 | `/api/v1/admin/{overview,accounts,trend,ai-logs,scenarios,cards,rule-words,script-lines}` |
 | 点评 | `/api/v1/teacher/comments`（写/删）、`/api/v1/comments/{mine,unread}` |
+| 导出 | `/api/v1/teacher/export.csv` |
 
 完整清单见 `docs/design/附录A_API接口清单.md`，或在服务运行时访问 `/docs`。
 

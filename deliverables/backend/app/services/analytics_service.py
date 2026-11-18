@@ -248,3 +248,88 @@ async def admin_trend(session: AsyncSession, *, days: int = 30) -> AdminTrendOut
         scenario_usage=await _scenario_usage(session, all_owners, limit=10),
         dimensions=await _dimension_averages(session, all_owners),
     )
+
+# ═══════════════════════════════════════════════════════════
+# 成绩导出
+# ═══════════════════════════════════════════════════════════
+
+
+async def export_class_csv(
+    session: AsyncSession, owner_ids: list[uuid.UUID]
+) -> str:
+    """导出班级成绩为 CSV 文本（带 BOM，Excel 直接打开不乱码）。
+
+    一次训练一行，含六维明细，便于教师做线下统计或导入教务系统。
+    只导出**已结算**的记录（score_total > 0），未评分的不算成绩。
+    """
+    if not owner_ids:
+        return _csv_header()
+
+    rows = (
+        await session.execute(
+            select(
+                Account.username,
+                Account.nickname,
+                TrainingRecord.scenario_id,
+                TrainingRecord.scenario_name,
+                TrainingRecord.difficulty_label,
+                TrainingRecord.score_empathy,
+                TrainingRecord.score_question,
+                TrainingRecord.score_advice,
+                TrainingRecord.score_ethics,
+                TrainingRecord.score_process,
+                TrainingRecord.score_risk,
+                TrainingRecord.score_total,
+                TrainingRecord.duration_sec,
+                TrainingRecord.ai_used,
+                TrainingRecord.created_at,
+            )
+            .join(Account, Account.id == TrainingRecord.owner_id)
+            .where(
+                TrainingRecord.owner_id.in_(owner_ids),
+                TrainingRecord.score_total > 0,
+            )
+            .order_by(Account.username, TrainingRecord.created_at)
+        )
+    ).all()
+
+    lines = [_csv_header()]
+    for r in rows:
+        lines.append(
+            ",".join(
+                [
+                    _q(r[0]),
+                    _q(r[1]),
+                    _q(r[2]),
+                    _q(r[3]),
+                    _q(r[4]),
+                    str(r[5]),
+                    str(r[6]),
+                    str(r[7]),
+                    str(r[8]),
+                    str(r[9]),
+                    str(r[10]),
+                    str(r[11]),
+                    str(round((r[12] or 0) / 60)),
+                    "是" if r[13] else "否",
+                    r[14].strftime("%Y-%m-%d %H:%M") if r[14] else "",
+                ]
+            )
+        )
+    return "\n".join(lines) + "\n"
+
+
+def _csv_header() -> str:
+    return (
+        "用户名,姓名,案例编号,案例名称,难度,"
+        "同感与倾听,提问与对焦,信息与建议,伦理原则,过程完整性,风险识别与转介,"
+        "总分,时长(分钟),是否使用AI,提交时间"
+    )
+
+
+def _q(value: object) -> str:
+    """CSV 字段转义：含逗号/引号/换行时用双引号包裹，内部引号翻倍。"""
+    text = "" if value is None else str(value)
+    if any(ch in text for ch in ',"\n\r'):
+        return '"' + text.replace('"', '""') + '"'
+    return text

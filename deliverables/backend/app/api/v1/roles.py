@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends
+from datetime import UTC, datetime
+
+from fastapi import APIRouter, Depends, Response
 
 from app.core.deps import CurrentUser, SessionDep, SettingsDep, require_roles
 from app.core.errors import AppError
@@ -361,3 +363,22 @@ async def my_unread_comments(account: CurrentUser, session: SessionDep):
     if account.is_guest:
         return ok({"unread": 0})
     return ok({"unread": await comment_service.unread_count(session, account)})
+
+
+@teacher_router.get("/export.csv", summary="导出班级成绩 CSV")
+async def teacher_export_csv(account: CurrentUser, session: SessionDep):
+    """导出名下学员的已结算成绩，Excel 可直接打开（带 BOM 防乱码）。"""
+    ids = await role_service.learner_ids(session, account)
+    text = await analytics_service.export_class_csv(session, ids)
+    # BOM 让 Excel 正确识别 UTF-8，否则中文全是乱码
+    payload = "\ufeff" + text
+    filename = f"class-grades-{datetime.now(UTC).strftime('%Y%m%d')}.csv"
+    return Response(
+        content=payload.encode("utf-8"),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            # 前端 fetch 读不到 Content-Disposition 除非显式暴露
+            "Access-Control-Expose-Headers": "Content-Disposition",
+        },
+    )

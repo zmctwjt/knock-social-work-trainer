@@ -187,6 +187,35 @@ export default function TeacherPage() {
     if (r.ok && selected) await loadDetail(selected);
   }
 
+  /** 导出班级成绩 CSV。
+      用 fetch + blob 而不是 window.open：需要带 Authorization 头，
+      直接开新窗口拿不到令牌。 */
+  const [exporting, setExporting] = useState(false);
+  async function exportCsv() {
+    setExporting(true);
+    try {
+      const base = (import.meta.env.VITE_API_BASE as string | undefined) ?? '';
+      const token = localStorage.getItem('knock.auth.access') ?? '';
+      const resp = await fetch(`${base}/api/v1/teacher/export.csv`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!resp.ok) {
+        setMsg(`导出失败（HTTP ${resp.status}）`);
+        return;
+      }
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `班级成绩-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setMsg('成绩已导出，可用 Excel 直接打开');
+    } finally {
+      setExporting(false);
+    }
+  }
+
   async function bindLearner() {
     const name = bindName.trim();
     if (!name) return;
@@ -256,8 +285,12 @@ export default function TeacherPage() {
               {t.key}
             </button>
           ))}
+          <button type="button" className="wb-tab" style={{ marginLeft: 'auto' }}
+            onClick={() => void exportCsv()} disabled={exporting}>
+            {exporting ? '导出中…' : '导出成绩 CSV ↓'}
+          </button>
           {role === 'admin' && (
-            <button type="button" className="wb-tab" style={{ marginLeft: 'auto' }}
+            <button type="button" className="wb-tab"
               onClick={() => nav('/admin')}>
               管理后台 →
             </button>
