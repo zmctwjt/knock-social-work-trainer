@@ -187,6 +187,7 @@ async def learner_records(
             nickname=target.nickname,
             sessions=1,
             avg_total=float(rec.score_total),
+            record_id=rec.id,
             is_active=target.is_active,
             last_login_at=target.last_login_at,
             scenario_name=rec.scenario_name,
@@ -246,6 +247,7 @@ async def admin_list_accounts(
     keyword: str | None = None,
     page: int = 1,
     page_size: int = 50,
+    include_guests: bool = False,
 ) -> AccountListOut:
     """账号分页查询。
 
@@ -257,6 +259,10 @@ async def admin_list_accounts(
     current = max(1, page)
 
     filters = []
+    # 访客是每次访问即时创建的临时账号，量大且无管理价值，默认不返回。
+    # 必须放在服务端过滤，否则分页会被访客占满（客户端过滤会看到空页）。
+    if not include_guests:
+        filters.append(Account.is_guest.is_(False))
     if role:
         filters.append(Account.role == role)
     if keyword:

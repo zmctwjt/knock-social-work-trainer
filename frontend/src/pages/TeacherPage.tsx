@@ -55,7 +55,22 @@ interface LearnerDetail {
   trend: TrendPoint[]; scenarios: ScenarioUsage[];
 }
 interface RecordRow {
-  scenario_name?: string; score_total?: number; created_at?: string;
+  record_id?: string;
+  scenario_name?: string;
+  score_total?: number;
+  created_at?: string;
+}
+
+interface CommentRow {
+  id: string;
+  record_id: string;
+  teacher_name: string;
+  content: string;
+  level: string;
+  level_label: string;
+  created_at: string | null;
+  scenario_name: string;
+  score_total: number;
 }
 
 const TABS = [
@@ -93,14 +108,22 @@ export default function TeacherPage() {
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
   const [bindName, setBindName] = useState('');
+  const [comments, setComments] = useState<CommentRow[]>([]);
+  const [commentFor, setCommentFor] = useState<RecordRow | null>(null);
+  const [commentText, setCommentText] = useState('');
+  const [commentLevel, setCommentLevel] = useState<'good' | 'watch' | 'urgent'>('good');
 
   const loadDetail = useCallback(async (x: Learner) => {
-    const [d, r] = await Promise.all([
+    const [d, r, c] = await Promise.all([
       apiGet<LearnerDetail>(`/api/v1/teacher/learners/${x.account_id}/detail`),
       apiGet<{ items: RecordRow[] }>(`/api/v1/teacher/learners/${x.account_id}/records`),
+      apiGet<{ items: CommentRow[] }>(
+        `/api/v1/teacher/learners/${x.account_id}/comments`,
+      ),
     ]);
     setDetail(d ?? null);
     setRecords(r?.items ?? []);
+    setComments(c?.items ?? []);
   }, []);
 
   const load = useCallback(async () => {
@@ -139,6 +162,29 @@ export default function TeacherPage() {
     setTab('学员画像');
     setDetail(null);
     await loadDetail(x);
+  }
+
+  async function submitComment() {
+    const text = commentText.trim();
+    if (!text) { setMsg('点评内容不能为空'); return; }
+    if (!commentFor?.record_id) { setMsg('这条记录缺少 ID，无法点评'); return; }
+    const r = await apiSend(
+      'POST',
+      `/api/v1/teacher/comments?record_id=${commentFor.record_id}`,
+      { content: text, level: commentLevel },
+    );
+    setMsg(r.ok ? '点评已发布，学员可在成长中心的点评里看到' : r.msg);
+    if (r.ok) {
+      setCommentText('');
+      setCommentFor(null);
+      if (selected) await loadDetail(selected);
+    }
+  }
+
+  async function deleteComment(id: string) {
+    const r = await apiSend('DELETE', `/api/v1/teacher/comments/${id}`);
+    setMsg(r.ok ? '点评已删除' : r.msg);
+    if (r.ok && selected) await loadDetail(selected);
   }
 
   async function bindLearner() {
@@ -415,24 +461,96 @@ export default function TeacherPage() {
                     ))}
                   </div>
                   <div className="wb-panel">
-                    <div className="wb-panel-h">最近训练记录</div>
+                    <div className="wb-panel-h">
+                      <span>训练记录 · 可点评</span>
+                      <span className="hint">{records.length} 条</span>
+                    </div>
                     {records.length === 0 && (
                       <div className="wb-empty">暂无记录。</div>
                     )}
-                    {records.slice(0, 12).map((r, i) => (
-                      <div key={i} className="wb-row">
-                        <span className="name" style={{ fontWeight: 400 }}>
-                          {r.scenario_name || '—'}
-                        </span>
-                        <span className="spacer" />
-                        <span className="mono">{r.score_total ?? '—'} 分</span>
-                        <span className="mono" style={{ color: 'var(--ink-4)' }}>
-                          {r.created_at
-                            ? new Date(r.created_at).toLocaleDateString('zh-CN')
-                            : ''}
-                        </span>
-                      </div>
-                    ))}
+                    {records.slice(0, 12).map((r, i) => {
+                      const recComments = comments.filter((c) => c.record_id === r.record_id);
+                      const active = commentFor === r;
+                      return (
+                        <div key={r.record_id ?? i} style={{ borderBottom: '1px solid var(--rule)' }}>
+                          <div className="wb-row" style={{ borderBottom: 'none' }}>
+                            <span className="name" style={{ fontWeight: 400 }}>
+                              {r.scenario_name || '—'}
+                            </span>
+                            <span className="spacer" />
+                            <span className="mono">{r.score_total ?? '—'} 分</span>
+                            <span className="mono" style={{ color: 'var(--ink-4)' }}>
+                              {r.created_at
+                                ? new Date(r.created_at).toLocaleDateString('zh-CN')
+                                : ''}
+                            </span>
+                            {recComments.length > 0 && (
+                              <span className="tag ok">{recComments.length} 评</span>
+                            )}
+                            <button className="btn-ghost" type="button"
+                              style={{ padding: '4px 12px', fontSize: 12 }}
+                              onClick={() => {
+                                setCommentFor(active ? null : r);
+                                setCommentText('');
+                              }}>
+                              {active ? '收起' : '点评'}
+                            </button>
+                          </div>
+
+                          {/* 已有点评 */}
+                          {recComments.map((c) => (
+                            <div key={c.id} style={{
+                              padding: '4px 0 10px 0', fontSize: 12.5,
+                              color: 'var(--ink-2)', lineHeight: 1.65,
+                            }}>
+                              <span className={`tag ${c.level === 'urgent' ? 'warn'
+                                : c.level === 'watch' ? 'warn' : 'ok'}`}>
+                                {c.level_label}
+                              </span>
+                              <span style={{ margin: '0 8px' }}>{c.content}</span>
+                              <span className="mono" style={{ color: 'var(--ink-4)' }}>
+                                {c.teacher_name} ·{' '}
+                                {c.created_at
+                                  ? new Date(c.created_at).toLocaleDateString('zh-CN')
+                                  : ''}
+                              </span>
+                              <button className="btn-ghost" type="button"
+                                onClick={() => deleteComment(c.id)}
+                                style={{ padding: '2px 8px', fontSize: 11, marginLeft: 8 }}>
+                                删除
+                              </button>
+                            </div>
+                          ))}
+
+                          {/* 点评输入 */}
+                          {active && (
+                            <div style={{ paddingBottom: 12, display: 'flex',
+                              gap: 8, flexWrap: 'wrap' }}>
+                              <select className="wb-input" style={{ width: 110 }}
+                                value={commentLevel}
+                                onChange={(e) => setCommentLevel(
+                                  e.target.value as 'good' | 'watch' | 'urgent',
+                                )}>
+                                <option value="good">表现良好</option>
+                                <option value="watch">需关注</option>
+                                <option value="urgent">需干预</option>
+                              </select>
+                              <input className="wb-input" style={{ flex: 1, minWidth: 200 }}
+                                placeholder="写点评，学员会在成长中心看到"
+                                value={commentText}
+                                onChange={(e) => setCommentText(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') void submitComment();
+                                }} />
+                              <button className="btn-primary" type="button"
+                                onClick={submitComment} style={{ padding: '9px 16px' }}>
+                                发布
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </>

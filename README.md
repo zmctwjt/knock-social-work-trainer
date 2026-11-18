@@ -19,7 +19,7 @@
 | 实时评分 | 六维评分 + 逐句点评，每条判定可溯源到标准条款 |
 | 阶段结算 | 每阶段汇总，展示得分构成与命中规则 |
 | 复盘报告 | 三段式复盘，指出薄弱项与改进方向 |
-| 成长中心 | 六维雷达、成长曲线、训练热力图 |
+| 成长中心 | 六维雷达、成长曲线、训练热力图、**老师点评** |
 | 知识库 | 19 张技巧卡 + 伦理守则，支持关键词检索 |
 | 危机处置 | 识别高风险表述并中止对话，提示转介与上报 |
 
@@ -30,6 +30,7 @@
 | 班级总览 | 学员数、训练量、班级均分、最薄弱维度；按用户名绑定学员 |
 | 学员画像 | 六维雷达、14 天进步曲线、案例分布、最近训练记录 |
 | 训练趋势 | 班级均分趋势（双轴）、六维均值、案例练习分布 |
+| **教师点评** | 对学员单次训练写点评（表现良好/需关注/需干预），学员在成长中心可见 |
 | 内容查阅 | 检索技巧卡与伦理守则作为教学参考 |
 
 ### 管理端
@@ -55,7 +56,7 @@
 | 鉴权 | PyJWT（access/refresh）+ Argon2id 口令哈希 + RBAC 四角色 |
 | AI | httpx 自建网关对接智谱 GLM-4.7-Flash（含降级链） |
 | 观测 | structlog · Prometheus · OpenTelemetry（可选） |
-| 测试 | pytest（132 用例）+ 6 个端到端审查脚本 |
+| 测试 | pytest（151 用例）+ 9 个端到端审查脚本 |
 
 ---
 
@@ -133,7 +134,7 @@ npm run build        # 产物由后端托管，单端口 8000 即可访问
 │  ├─ app/domain/                 领域层：规则词表、六维评分、危机判定、ORM 模型
 │  ├─ app/services/               AI 网关、会话、统计、分析、账号、审计
 │  ├─ app/core/                   配置、鉴权、日志、指标、中间件、限流
-│  ├─ alembic/                    数据库迁移（4 个版本）
+│  ├─ alembic/                    数据库迁移（5 个版本）
 │  └─ tests/                      pytest 用例
 ├─ deliverables/deploy/           部署制品（Compose / K8s / Nginx / Prometheus / CI）
 ├─ work/
@@ -204,6 +205,9 @@ python work/audit_roles_ui.py        # 三角色登录与页面隔离
 python work/audit_role_landing.py    # 角色化落地页与导航裁剪
 python work/audit_extended_api.py    # 扩展接口权限与健壮性
 python work/audit_workbench_ui.py    # 教师/管理页全部标签页渲染
+python work/audit_confirm.py         # 危险操作二次确认
+python work/audit_comments.py        # 教师点评权限与流程
+python work/audit_comment_ui.py      # 点评端到端闭环（教师发布→学生可见）
 python work/audit_mobile.py          # 移动端 390px 无横向溢出
 python work/audit_confirm.py         # 危险操作二次确认
 ```
@@ -225,6 +229,7 @@ CI（`.github/workflows/ci.yml`）在每次推送时运行三个 job：
 | AI | `/api/v1/ai/{intent,persona,score,debrief}` |
 | 教师 | `/api/v1/teacher/{learners,stats,trend,learners/{id}/detail}` |
 | 管理 | `/api/v1/admin/{overview,accounts,trend,ai-logs,scenarios,cards,rule-words,script-lines}` |
+| 点评 | `/api/v1/teacher/comments`（写/删）、`/api/v1/comments/{mine,unread}` |
 
 完整清单见 `docs/design/附录A_API接口清单.md`，或在服务运行时访问 `/docs`。
 
@@ -246,9 +251,9 @@ JWT_SECRET=至少32字符的随机串      # 生产环境必须替换
 ## 十 已知边界
 
 - AI 能力依赖外部模型服务；未配置密钥时走规则模式，训练流程完整但台词取自预置库。
-- 教师点评、作业分发、班级实体属二期（当前用 `teacher_id` 做简易归属）。
-- 未做移动端适配，界面按桌面 1440px 设计。
-- 账号列表与训练记录未分页（当前上限 200 / 100 条）。
+- 作业分发、班级实体属二期（当前用 `teacher_id` 做简易归属）。
+- 移动端做了基础适配（<=720px 断点，390px 下无横向溢出），但交互仍以桌面为主。
+- 训练记录分页上限 100 条/页；账号列表 200 条/页。
 
 ---
 

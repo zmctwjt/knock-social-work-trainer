@@ -454,3 +454,36 @@ class ScriptLine(Base, TimestampMixin):
         Index("ix_script_lines_bucket_order", "emotion_bucket", "order_index"),
         Index("ix_script_lines_scenario", "scenario_id"),
     )
+
+
+class TeacherComment(Base, TimestampMixin):
+    """教师对某次训练记录的点评。
+
+    为什么要挂在 `TrainingRecord` 而不是 `TrainingSession`：
+    学生看的是"这次训练拿了多少分"，点评要跟着成绩一起出现，
+    而成绩是结算后写入 `training_records` 的。挂 session 会导致
+    "训练还没结算就没有记录可点评"的空档。
+
+    一个记录允许多条点评（同一教师可追加，不同教师也可各评各的），
+    所以不做唯一约束，靠 `teacher_id + record_id + created_at` 排序展示。
+    """
+
+    __tablename__ = "teacher_comments"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    record_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("training_records.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # 点评者（教师或管理员）
+    teacher_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # 被点评的学员，冗余存一份便于"按学员查所有点评"而不必join记录表
+    learner_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    content: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    # 教师给的建议等级：good=表现良好 / watch=需关注 / urgent=需干预
+    level: Mapped[str] = mapped_column(String(16), nullable=False, default="good")
+    # 是否已读（学生端可提示"老师有新点评"）
+    read_by_learner: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

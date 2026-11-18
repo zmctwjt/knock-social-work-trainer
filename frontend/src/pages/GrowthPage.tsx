@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { useStore, useMyRecords, type TrainingRecord } from '../store/store.tsx';
 import { DIMENSIONS, DIMENSION_SHORT } from '../services/scoring.ts';
 import { SCENARIOS } from '../data/scenarios.ts';
+import { apiGet } from '../lib/authClient.ts';
 
 /* ── 绘图常量（沿用原稿坐标）── */
 const RC = 160, RY = 150, RMAX = 100;
@@ -41,11 +42,32 @@ function heatOf(records: TrainingRecord[]) {
   return { cells, byDay };
 }
 
+interface TeacherCommentRow {
+  id: string;
+  content: string;
+  level: string;
+  level_label: string;
+  teacher_name: string;
+  created_at: string | null;
+  scenario_name: string;
+  score_total: number;
+}
+
 export default function GrowthPage() {
   const nav = useNavigate();
   const [detail, setDetail] = useState<TrainingRecord | null>(null);
+  const [comments, setComments] = useState<TeacherCommentRow[]>([]);
   const { account } = useStore();
   const recs = useMyRecords();
+
+  /* 老师点评：来自服务端，与本地训练记录相互独立。
+     即使本地无记录（换设备/清缓存），也要能把老师的反馈展示出来。 */
+  useEffect(() => {
+    if (!account) return;
+    void apiGet<{ items: TeacherCommentRow[] }>('/api/v1/comments/mine').then((r) => {
+      setComments(r?.items ?? []);
+    });
+  }, [account]);
 
   const g = useMemo(() => {
     const n = recs.length;
@@ -95,6 +117,61 @@ export default function GrowthPage() {
              activeDays, streak, scripts, first: sorted[0] };
   }, [recs]);
 
+  /* 老师点评区块：抽成变量，空状态与正常状态都要展示。
+     否则学生换了设备（本地无记录）就看得到"还没有训练记录"，
+     却看不到老师已经写好的点评——反馈被吞掉是真实缺陷。 */
+  const commentSection = comments.length > 0 ? (
+        <div className="history" style={{ marginBottom: 'var(--s6)' }}>
+          <div className="sp-head">
+            <span className="k">Teacher's Notes · 老师点评</span>
+            <span className="s">共 {comments.length} 条</span>
+          </div>
+          <div style={{ padding: '0 var(--s4)' }}>
+            {comments.map((c) => (
+              <div key={c.id} style={{
+                padding: '14px 0',
+                borderBottom: '1px solid var(--rule)',
+              }}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  marginBottom: 6, flexWrap: 'wrap',
+                }}>
+                  <span className={
+                    'tag ' + (c.level === 'good' ? 'ok' : 'warn')
+                  } style={{
+                    fontFamily: 'var(--mono)', fontSize: '9.5px',
+                    letterSpacing: '.12em', padding: '2px 7px',
+                    borderRadius: 3,
+                    background: c.level === 'good'
+                      ? 'var(--green-wash)' : 'var(--proof-wash)',
+                    color: c.level === 'good'
+                      ? 'var(--green-deep)' : 'var(--proof)',
+                  }}>
+                    {c.level_label}
+                  </span>
+                  <b style={{ fontSize: 13 }}>{c.teacher_name}</b>
+                  <span style={{
+                    fontFamily: 'var(--mono)', fontSize: 10.5,
+                    color: 'var(--ink-4)', letterSpacing: '.08em',
+                  }}>
+                    {c.scenario_name} · {c.score_total} 分 ·{' '}
+                    {c.created_at
+                      ? new Date(c.created_at).toLocaleDateString('zh-CN')
+                      : ''}
+                  </span>
+                </div>
+                <p style={{
+                  margin: 0, fontSize: 13.5, lineHeight: 1.8,
+                  color: 'var(--ink-2)',
+                }}>
+                  {c.content}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+  ) : null;
+
   if (!g) {
     return (
       <div className="screen is-on">
@@ -116,6 +193,7 @@ export default function GrowthPage() {
             去选一位服务对象 →
           </button>
         </div>
+        {commentSection}
       </div>
     );
   }
@@ -317,6 +395,8 @@ export default function GrowthPage() {
           ))}
         </div>
       </div>
+
+      {commentSection}
 
       <div className="history">
         <div className="sp-head">

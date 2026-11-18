@@ -113,7 +113,8 @@ export default function AdminPage() {
   const [newLine, setNewLine] = useState({
     text: '', emotion_bucket: 'mid', scenario_id: '',
   });
-  const [accFilter, setAccFilter] = useState({ role: '', keyword: '' });
+  // 访客是每次访问即时创建的临时账号，量大且无管理价值，默认隐藏
+  const [accFilter, setAccFilter] = useState({ role: '', keyword: '', hideGuests: true });
   const [selected, setSelected] = useState<string[]>([]);
   const [cardForm, setCardForm] = useState({
     id: '', title: '', category: '技巧', summary: '', content: '',
@@ -141,7 +142,11 @@ export default function AdminPage() {
     }
     setDenied(false);
     const [a, t, g, l, s, c, ai] = await Promise.all([
-      apiGet<Paged<AccountRow>>(`/api/v1/admin/accounts?page=${accPage}&page_size=20`),
+      apiGet<Paged<AccountRow>>(
+        `/api/v1/admin/accounts?page=${accPage}&page_size=20`
+        + `&include_guests=${accFilter.hideGuests ? 'false' : 'true'}`
+        + (accFilter.role ? `&role=${accFilter.role}` : ''),
+      ),
       apiGet<AdminTrend>('/api/v1/admin/trend'),
       apiGet<{ groups: RuleGroup[]; custom: CustomWord[] }>('/api/v1/admin/rule-words'),
       apiGet<{ items: ScriptLine[] }>('/api/v1/admin/script-lines'),
@@ -160,7 +165,7 @@ export default function AdminPage() {
     setCards(c?.items ?? []);
     setAiLogs(ai ?? null);
     setLoading(false);
-  }, [accPage, notify]);
+  }, [accPage, accFilter.hideGuests, accFilter.role, notify]);
 
   useEffect(() => { if (account) void load(); }, [account, load]);
 
@@ -321,6 +326,7 @@ export default function AdminPage() {
   }
 
   const filteredAccounts = useMemo(() => accounts.filter((a) => {
+    if (accFilter.hideGuests && a.is_guest) return false;
     if (accFilter.role && a.role !== accFilter.role) return false;
     if (accFilter.keyword) {
       const q = accFilter.keyword.toLowerCase();
@@ -560,6 +566,17 @@ export default function AdminPage() {
                   <option value="admin">管理员</option>
                   <option value="guest">访客</option>
                 </select>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6,
+                  fontSize: 12.5, color: 'var(--ink-2)', cursor: 'pointer',
+                  minHeight: 40 }}>
+                  <input type="checkbox" checked={accFilter.hideGuests}
+                    onChange={(e) => {
+                      setAccFilter({ ...accFilter, hideGuests: e.target.checked });
+                      setAccPage(1);
+                    }}
+                    style={{ width: 15, height: 15, cursor: 'pointer' }} />
+                  隐藏访客
+                </label>
                 <button className="btn-ghost" type="button" onClick={() => bulkToggle(false)}
                   style={{ padding: '9px 16px' }}>
                   批量停用

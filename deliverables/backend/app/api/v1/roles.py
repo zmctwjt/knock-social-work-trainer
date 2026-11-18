@@ -25,12 +25,14 @@ from app.domain.schemas import (
 from app.domain.schemas import (
     BulkActiveRequest,
     BulkResultOut,
+    CommentIn,
     RuleWordIn,
     ScriptLineIn,
     ScriptLinePatch,
 )
 from app.services import (
     analytics_service,
+    comment_service,
     role_service,
     rule_word_service,
     script_line_service,
@@ -41,6 +43,8 @@ AdminUser = Depends(require_roles(Role.ADMIN))
 
 teacher_router = APIRouter(prefix="/teacher", tags=["教师端"], dependencies=[TeacherUser])
 admin_router = APIRouter(prefix="/admin", tags=["管理端"], dependencies=[AdminUser])
+# 学生/教师都能访问自己的点评，因此不预置角色依赖，逐接口用 CurrentUser 校验
+comment_router = APIRouter(prefix="/comments", tags=["点评"])
 
 
 # ── 教师端 ──────────────────────────────────────────────────
@@ -90,11 +94,17 @@ async def admin_accounts(
     keyword: str | None = None,
     page: int = 1,
     page_size: int = 50,
+    include_guests: bool = False,
 ):
     return ok(
         (
             await role_service.admin_list_accounts(
-                session, role=role, keyword=keyword, page=page, page_size=page_size
+                session,
+                role=role,
+                keyword=keyword,
+                page=page,
+                page_size=page_size,
+                include_guests=include_guests,
             )
         ).model_dump()
     )
@@ -298,3 +308,56 @@ async def admin_bulk_active(
         BulkResultOut(updated=updated, failed=failed, messages=messages).model_dump(),
         message=f"已更新 {updated} 个账号",
     )
+
+
+# ── 教师点评 ────────────────────────────────────────────────
+@teacher_router.post("/comments", summary="对某次训练写点评")
+async def teacher_create_comment(
+    payload: CommentIn,
+    record_id: uuid.UUID,
+    account: CurrentUser,
+    session: SessionDep,
+):
+    out = await comment_service.create_comment(
+        session, account, record_id=record_id, content=payload.content, level=payload.level
+    )
+    return ok(out.model_dump(), message="点评已发布")
+
+
+@teacher_router.get("/comments", summary="某条记录下的点评")
+async def teacher_record_comments(
+    record_id: uuid.UUID, account: CurrentUser, session: SessionDep
+):
+    return ok((await comment_service.list_by_record(session, account, record_id)).model_dump())
+
+
+@teacher_router.delete("/comments/{comment_id}", summary="删除自己写的点评")
+async def teacher_delete_comment(
+    comment_id: uuid.UUID, account: CurrentUser, session: SessionDep
+):
+    await comment_service.delete_comment(session, account, comment_id)
+    return ok(None, message="点评已删除")
+
+
+@teacher_router.get("/learners/{owner_id}/comments", summary="学员收到的全部点评")
+async def teacher_learner_comments(
+    owner_id: uuid.UUID, account: CurrentUser, session: SessionDep
+):
+    out = await comment_service.list_for_learner(session, account, owner_id)
+    return ok(out.model_dump())
+
+
+# 学生自己看收到的点评（任何已登录非访客角色都可查看自己的）
+@comment_router.get("/mine", summary="我收到的点评")
+async def my_comments(account: CurrentUser, session: SessionDep):
+    if account.is_guest:
+        raise AppError.forbidden("访客无权查看点评")
+    out = await comment_service.list_for_learner(session, account, account.id)
+    return ok(out.model_dump())
+
+
+@comment_router.get("/unread", summary="未读点评数")
+async def my_unread_comments(account: CurrentUser, session: SessionDep):
+    if account.is_guest:
+        return ok({"unread": 0})
+    return ok({"unread": await comment_service.unread_count(session, account)})

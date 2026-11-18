@@ -534,6 +534,8 @@ class LearnerRecordOut(BaseModel):
     avg_total: float = 0.0
     is_active: bool = True
     last_login_at: datetime | None = None
+    # 单条记录的 id：教师点评要按记录定位，没有它前端无法发起点评
+    record_id: uuid.UUID | None = None
     scenario_name: str | None = None
     score_total: int | None = None
     created_at: datetime | None = None
@@ -730,3 +732,37 @@ class BulkResultOut(BaseModel):
     updated: int = 0
     failed: int = 0
     messages: list[str] = Field(default_factory=list)
+
+
+# ═══════════════════════════════════════════════════════════
+# 十七、教师点评
+# ═══════════════════════════════════════════════════════════
+
+
+class CommentIn(BaseModel):
+    content: str = Field(min_length=1, max_length=1000)
+    # good=表现良好 / watch=需关注 / urgent=需干预
+    level: Literal["good", "watch", "urgent"] = "good"
+
+
+class CommentOut(BaseModel):
+    id: str
+    record_id: str
+    teacher_id: str
+    teacher_name: str
+    learner_id: str
+    learner_name: str
+    content: str
+    level: str
+    level_label: str
+    read_by_learner: bool
+    created_at: str | None = None
+    # 关联的训练信息，方便列表直接展示
+    scenario_name: str = ""
+    score_total: int = 0
+
+
+class CommentListOut(BaseModel):
+    items: list[CommentOut] = Field(default_factory=list)
+    total: int = 0
+    unread: int = 0

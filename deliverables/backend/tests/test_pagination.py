@@ -155,3 +155,29 @@ async def test_learner_records_forbidden_returns_empty_not_error(api):
     )
     assert resp.status_code == 200
     assert resp.json()["data"]["items"] == []
+
+
+@pytest.mark.asyncio
+async def test_guests_hidden_by_default(api):
+    """访客账号默认不返回——否则分页会被临时账号占满，管理员找不到真实账号。"""
+    application, client = await api()
+    headers = await _admin_headers(application, client)
+    await _make_students(application, 2)
+
+    # 造 3 个访客
+    for i in range(3):
+        await client.post("/api/v1/auth/guest", json={"nickname": f"路人{i}"})
+
+    default = (await client.get(
+        "/api/v1/admin/accounts", headers=headers, params={"page_size": 100}
+    )).json()["data"]
+    names = [x["username"] for x in default["items"]]
+    assert not any(n.startswith("guest_") for n in names), "默认不应返回访客"
+    assert default["total"] == 3, "总数应只算非访客（1 管理员 + 2 学员）"
+
+    # 显式要求时可以看到
+    with_guests = (await client.get(
+        "/api/v1/admin/accounts", headers=headers,
+        params={"page_size": 100, "include_guests": "true"},
+    )).json()["data"]
+    assert with_guests["total"] == 6, "include_guests=true 时应包含访客"
