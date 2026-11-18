@@ -2870,3 +2870,30 @@ button:active:not(:disabled){transform:translateY(1px) scale(.985)}
 .wb-frame{max-width:1180px;margin:0 auto;padding:0 var(--s5);
   display:block;grid-template-columns:none}
 @media (max-width:720px){.wb-frame{padding:0 16px}}
+
+/* 知识库筛选条：任务书要求「按案例与关键词检索」 */
+.kb-filters{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;
+  padding:var(--s3) 0 var(--s2);border-bottom:1px solid var(--rule);margin-bottom:var(--s3)}
+.kb-filters label{display:flex;flex-direction:column;gap:4px;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;
+  color:var(--ink-3);text-transform:uppercase}
+.kb-filters select{font-family:var(--sans);font-size:13px;color:var(--ink);
+  padding:7px 10px;min-height:38px;min-width:150px;
+  border:1px solid var(--rule-strong);border-radius:var(--r-sm);
+  background:var(--paper-raised);cursor:pointer}
+.kb-filters select:focus{outline:2px solid var(--green);outline-offset:1px}
+.kb-reset{font-family:var(--sans);font-size:12.5px;min-height:38px;padding:0 14px;
+  border:1px solid var(--rule-strong);background:transparent;border-radius:var(--r-sm);
+  color:var(--ink-2);cursor:pointer}
+.kb-reset:hover{border-color:var(--proof);color:var(--proof)}
+.kb-empty .linkd{font-size:12.5px}
+/* 卡片上的「适用案例」提示 */
+.kcard-case{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
+  color:var(--ink-4);margin-top:var(--s2);padding-top:var(--s2);
+  border-top:1px dashed var(--rule)}
+@media (max-width:720px){
+  .kb-filters{gap:8px}
+  .kb-filters label{flex:1 1 140px}
+  .kb-filters select{width:100%;min-width:0}
+  .kb-reset{flex:1 1 100%}
+}
