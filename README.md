@@ -180,17 +180,36 @@ npm run build        # 产物由后端托管，单端口 8000 即可访问
 
 ## 七 测试与审查
 
-```bash
-# 单元测试
-cd deliverables/backend && python -m pytest        # 132 passed
+Linux/macOS 下用 Makefile 统一入口：
 
-# 端到端审查（需服务已启动）
+```bash
+make help          # 列出全部命令
+make install       # 安装前后端依赖
+make dev           # 同时起后端(8000)与前端(5173)
+make test          # 后端单元测试
+make build         # 前端类型检查 + 生产构建
+make audit         # 跑全部端到端审查（需服务已启动）
+make migrate       # 数据库迁移
+```
+
+Windows 下直接跑脚本（本机未装 make 也能用）：
+
+```bash
+# 单元测试：143 passed
+cd deliverables/backend && python -m pytest
+
+# 端到端审查，逐个跑（需服务已启动）
 python work/audit_permissions.py     # 四角色 × 全接口权限矩阵
 python work/audit_roles_ui.py        # 三角色登录与页面隔离
 python work/audit_role_landing.py    # 角色化落地页与导航裁剪
 python work/audit_extended_api.py    # 扩展接口权限与健壮性
 python work/audit_workbench_ui.py    # 教师/管理页全部标签页渲染
+python work/audit_mobile.py          # 移动端 390px 无横向溢出
+python work/audit_confirm.py         # 危险操作二次确认
 ```
+
+CI（`.github/workflows/ci.yml`）在每次推送时运行三个 job：
+后端测试 + 真实 MySQL 迁移、前端类型检查与构建、密钥扫描与依赖漏洞扫描。
 
 ---
 
