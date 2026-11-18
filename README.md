@@ -1,5 +1,11 @@
 # 叩门 · 社工个案面谈 AI 陪练舱
 
+[![CI](https://github.com/zmctwjt/knock-social-work-trainer/actions/workflows/ci.yml/badge.svg)](https://github.com/zmctwjt/knock-social-work-trainer/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=white)](https://react.dev/)
+[![License](https://img.shields.io/badge/license-学习用途-lightgrey)](#十二-许可)
+
+
 面向社会工作专业实训的**多角色对话陪练与教学管理系统**。依据民政部行业标准
 《社会工作方法 个案工作》（MZ/T 094-2017）构建训练流程与评分依据。
 
@@ -67,6 +73,7 @@
 | 文档 | 内容 |
 | --- | --- |
 | [使用说明书](docs/使用说明书.md) | 面向使用者的完整操作手册：环境要求、安装启动、三类角色操作流程、常见问题排查 |
+| [部署验证状态](docs/部署验证状态.md) | 诚实记录哪些已验证、哪些只是设计制品、哪些明确未做 |
 | [设计文档](docs/design/) | 现状分析、技术选型、数据库设计、安全方案、可观测性、验收标准等 17 篇 |
 | `/docs`（运行时） | 接口文档（开发环境自动挂载，生产环境默认关闭） |
 
@@ -286,6 +293,12 @@ JWT_SECRET=至少32字符的随机串      # 生产环境必须替换
 - 作业分发、班级实体属二期（当前用 `teacher_id` 做简易归属）。
 - 移动端做了基础适配（<=720px 断点，390px 下无横向溢出），但交互仍以桌面为主。
 - 训练记录分页上限 100 条/页；账号列表 200 条/页。
+
+**未验证项**（详见 [部署验证状态](docs/部署验证状态.md)）：
+- AI 供应商真实调用未验证（开发全程未配置密钥，走规则模式）
+- Docker Compose / K8s / Nginx 制品齐备但未在真实环境启动
+- 未做并发压测；性能数字来自设计估算
+- 移动端仅 Chrome 模拟，未在真机与多浏览器验证
 
 ---
 
