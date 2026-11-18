@@ -34,7 +34,7 @@ cp env.example .env                                  # 按需填 DATABASE_URL / 
 # 开发模式（SQLite + 建表 + 种子数据）
 export APP_ENV=dev AUTO_CREATE_SCHEMA=true
 export DATABASE_URL="sqlite+aiosqlite:///./knock_dev.db"
-python -m alembic upgrade head
+alembic upgrade head
 python scripts/seed.py
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 
@@ -107,7 +107,7 @@ python docgen/make_xlsx.py --out 重构实施计划.xlsx
 docker compose up -d mysql redis                    # 或使用已有实例
 export DATABASE_URL='mysql+aiomysql://knock:knock@localhost:3306/knock?charset=utf8mb4'
 export REDIS_URL=redis://localhost:6379/0 GLM_API_KEY=<真实 key>
-cd backend && python -m alembic upgrade head && python -m alembic check
+cd backend && alembic upgrade head && alembic check
 python -m uvicorn app.main:app --port 8000 &
 curl -s -o /dev/null -w "%{http_code}\n" localhost:8000/healthz
 curl -s localhost:8000/api/v1/scenarios | head -c 200

@@ -58,3 +58,9 @@ work/*
 !work/seed_demo_accounts.py
 !work/seed_training_data.py
 !work/launch_backend.py
+
+# Windows 保留设备名（某些命令会意外创建）
+CON
+PRN
+AUX
+NUL

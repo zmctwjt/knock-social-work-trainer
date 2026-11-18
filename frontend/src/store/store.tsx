@@ -213,7 +213,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setAccounts((x) => [...x.filter((y) => y.id !== a.id), a]);
       setAccount(a);
       localStorage.setItem(K_CUR, a.id);
-      return { ok: true, msg: r.msg, role: a.role };
+      return { ok: true, msg: r.msg, role: a.role } satisfies AuthOutcome;
     }
 
     // 无后端：退回本地演示账号
@@ -227,7 +227,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setAccounts((x) => [...x, a]);
     setAccount(a);
     localStorage.setItem(K_CUR, a.id);
-    return { ok: true, msg: '注册成功（本地演示账号）', role: 'student' };
+    return { ok: true, msg: '注册成功（本地演示账号）', role: 'student' as const } satisfies AuthOutcome;
   }, [accounts]);
 
   const login = useCallback(async (nickname: string, password: string) => {
@@ -241,7 +241,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setAccounts((x) => [...x.filter((y) => y.id !== a.id), a]);
       setAccount(a);
       localStorage.setItem(K_CUR, a.id);
-      return { ok: true, msg: r.msg, role: a.role };
+      return { ok: true, msg: r.msg, role: a.role } satisfies AuthOutcome;
     }
 
     const a = accounts.find((x) => x.nickname === n);
@@ -249,7 +249,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (a.passHash !== hash(password)) return { ok: false, msg: '密码错误' };
     setAccount(a);
     localStorage.setItem(K_CUR, a.id);
-    return { ok: true, msg: '登录成功（本地演示账号）', role: 'student' };
+    return { ok: true, msg: '登录成功（本地演示账号）', role: 'student' as const } satisfies AuthOutcome;
   }, [accounts]);
 
   const loginGuest = useCallback(async () => {
@@ -261,7 +261,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const a = toAccount(r.user!);
     setAccount(a);
     localStorage.setItem(K_CUR, a.id);
-    return { ok: true, msg: r.msg, role: a.role };
+    return { ok: true, msg: r.msg, role: a.role } satisfies AuthOutcome;
   }, []);
 
   const logout = useCallback(() => {

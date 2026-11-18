@@ -83,7 +83,7 @@ cp env.example .env                                  # 按需修改 DATABASE_URL
 
 # 2. 数据库
 mysql -u root -p -e "CREATE DATABASE knock CHARACTER SET utf8mb4"
-python -m alembic upgrade head
+alembic upgrade head
 python scripts/seed.py                               # 12 个案例 + 19 张技巧卡
 
 # 3. 启动后端

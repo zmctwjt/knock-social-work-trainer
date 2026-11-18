@@ -144,36 +144,64 @@ async def class_stats(session: AsyncSession, teacher: Account) -> ClassStatsOut:
 
 
 async def learner_records(
-    session: AsyncSession, teacher: Account, owner_id: uuid.UUID
-) -> list[LearnerRecordOut]:
-    """查看指定学员记录。非本人名下学员返回空集（不报错，符合 F12）。"""
-    learners = await _my_learners(session, teacher)
-    if not any(x.id == owner_id for x in learners):
-        return []
+    session: AsyncSession,
+    teacher: Account,
+    owner_id: uuid.UUID,
+    *,
+    page: int = 1,
+    page_size: int = 20,
+) -> dict[str, object]:
+    """查看指定学员记录（分页）。
+
+    归属校验走 `learner_ids`，与详情、趋势接口同一口径：
+    教师只能看名下，管理员可看全部；非名下返回空集而非报错，避免泄露存在性。
+    """
+    allowed = await learner_ids(session, teacher)
+    target = await session.get(Account, owner_id)
+    if target is None or owner_id not in allowed:
+        return {"items": [], "total": 0, "page": 1, "page_size": page_size, "pages": 0}
+
+    size = max(1, min(page_size, 100))
+    current = max(1, page)
+    total = int(
+        (
+            await session.execute(
+                select(func.count(TrainingRecord.id)).where(
+                    TrainingRecord.owner_id == owner_id
+                )
+            )
+        ).scalar_one()
+        or 0
+    )
     rows = await session.execute(
         select(TrainingRecord)
         .where(TrainingRecord.owner_id == owner_id)
         .order_by(TrainingRecord.created_at.desc())
-        .limit(100)
+        .offset((current - 1) * size)
+        .limit(size)
     )
-    out: list[LearnerRecordOut] = []
-    target = next(x for x in learners if x.id == owner_id)
-    for rec in rows.scalars():
-        out.append(
-            LearnerRecordOut(
-                account_id=owner_id,
-                username=target.username,
-                nickname=target.nickname,
-                sessions=1,
-                avg_total=float(rec.score_total),
-                is_active=target.is_active,
-                last_login_at=target.last_login_at,
-                scenario_name=rec.scenario_name,
-                score_total=rec.score_total,
-                created_at=rec.created_at,
-            )
-        )
-    return out
+    items = [
+        LearnerRecordOut(
+            account_id=owner_id,
+            username=target.username,
+            nickname=target.nickname,
+            sessions=1,
+            avg_total=float(rec.score_total),
+            is_active=target.is_active,
+            last_login_at=target.last_login_at,
+            scenario_name=rec.scenario_name,
+            score_total=rec.score_total,
+            created_at=rec.created_at,
+        ).model_dump()
+        for rec in rows.scalars()
+    ]
+    return {
+        "items": items,
+        "total": total,
+        "page": current,
+        "page_size": size,
+        "pages": (total + size - 1) // size if total else 0,
+    }
 
 
 async def bind_learner(
@@ -212,19 +240,45 @@ def _admin_out(account: Account) -> AccountAdminOut:
 
 
 async def admin_list_accounts(
-    session: AsyncSession, *, role: str | None = None, keyword: str | None = None, limit: int = 50
+    session: AsyncSession,
+    *,
+    role: str | None = None,
+    keyword: str | None = None,
+    page: int = 1,
+    page_size: int = 50,
 ) -> AccountListOut:
-    stmt = select(Account).order_by(Account.created_at.desc()).limit(max(1, min(limit, 200)))
+    """账号分页查询。
+
+    用 offset 分页而非游标：账号按 created_at 排序且变动不频繁，
+    教务场景需要"跳到第 N 页"，游标分页反而不好用。
+    总数单独 count，不能拿本页长度充数（那会让前端算出错误的页数）。
+    """
+    size = max(1, min(page_size, 200))
+    current = max(1, page)
+
+    filters = []
     if role:
-        stmt = stmt.where(Account.role == role)
+        filters.append(Account.role == role)
     if keyword:
         like = f"%{keyword.strip()}%"
-        stmt = stmt.where(
-            (Account.username.like(like)) | (Account.nickname.like(like))
-        )
-    rows = await session.execute(stmt)
+        filters.append((Account.username.like(like)) | (Account.nickname.like(like)))
+
+    count_stmt = select(func.count(Account.id))
+    stmt = select(Account).order_by(Account.created_at.desc())
+    for f in filters:
+        count_stmt = count_stmt.where(f)
+        stmt = stmt.where(f)
+
+    total = int((await session.execute(count_stmt)).scalar_one() or 0)
+    rows = await session.execute(stmt.offset((current - 1) * size).limit(size))
     items = [_admin_out(x) for x in rows.scalars()]
-    return AccountListOut(items=items, total=len(items))
+    return AccountListOut(
+        items=items,
+        total=total,
+        page=current,
+        page_size=size,
+        pages=(total + size - 1) // size if total else 0,
+    )
 
 
 async def admin_create_account(

@@ -63,9 +63,10 @@ jobs:
         env:
           APP_ENV: dev
           DATABASE_URL: mysql+aiomysql://knock:knock@127.0.0.1:3306/knock_test?charset=utf8mb4
+        # alembic 没有 __main__，必须用控制台脚本；pip 安装后会进 PATH
         run: |
-          python -m alembic upgrade head
-          python -m alembic check
+          alembic upgrade head
+          alembic check
 
   frontend:
     name: 前端构建与类型检查

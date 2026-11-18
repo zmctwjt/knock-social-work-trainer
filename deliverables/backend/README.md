@@ -28,7 +28,7 @@ python -m pip install --no-cache-dir -r requirements.txt
 cp env.example .env
 
 # ③ 建表（SQLite 文件会自动创建）
-python -m alembic upgrade head
+alembic upgrade head
 
 # ④ 写入 12 个案例与 19 张技巧卡
 python scripts/seed.py

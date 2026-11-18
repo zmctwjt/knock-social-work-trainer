@@ -493,8 +493,17 @@ class AccountAdminOut(AccountOut):
 
 
 class AccountListOut(BaseModel):
+    """账号分页列表。
+
+    `total` 是**过滤后的总数**（不是本页条数），前端据此渲染页码；
+    `page`/`page_size` 回显请求参数，便于前端做无状态翻页。
+    """
+
     items: list[AccountAdminOut] = Field(default_factory=list)
     total: int = 0
+    page: int = 1
+    page_size: int = 50
+    pages: int = 0
 
 
 class AccountCreateRequest(BaseModel):

@@ -2682,3 +2682,77 @@ button:active:not(:disabled){transform:translateY(1px) scale(.985)}
 .training-view .masthead{padding-bottom:6px}
 .training-view .viewtabs{padding:4px 0}
 .training-view .viewtab{font-size:11px;padding:5px 10px}
+
+/* ═══════════════════════════════════════════════════════════
+   移动端适配（<= 720px）
+   ───────────────────────────────────────────────────────────
+   设计稿按 1440px 桌面做的，窄屏下 hero 标题会溢出、标签栏会横挤、
+   表格类内容会撑破容器。这里统一收口：
+   1. 标题降字号并按容器换行；
+   2. 顶栏标签改为横向滚动而非换行堆积；
+   3. 固定宽度的表格列改弹性，允许内部滚动；
+   4. 触控目标不小于 44px（WCAG 2.5.5）。
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width:720px){
+  /* 容器：左右留白收窄，避免内容被挤出视口 */
+  .frame,.shell{padding-left:16px;padding-right:16px}
+
+  /* 主标题：58px → 30px，允许在长词处换行 */
+  .hero-l h1{font-size:30px;line-height:1.22;letter-spacing:-0.01em;
+    word-break:break-word;overflow-wrap:anywhere}
+  .hero{padding:24px 0 8px}
+  .hero-l .lede{font-size:13.5px;line-height:1.75}
+
+  /* 主行动按钮：并排会挤，改为竖排全宽 */
+  .hero-cta{flex-direction:column;align-items:stretch;gap:10px}
+  .hero-cta button{width:100%;min-height:46px}
+
+  /* 顶栏：品牌占一行，操作按钮（徽标/引导/账号）另起一行靠右，避免被裁切 */
+  .mast-top{flex-wrap:wrap;gap:8px;align-items:center;padding-bottom:10px}
+  .mast-top .spacer{display:none}             /* 去掉弹性占位，改为整行换行 */
+  .wordmark{flex:1 0 100%}                    /* 品牌独占一行 */
+  .wordmark .en{display:none}                 /* 英文副标题在窄屏是噪音 */
+  .mast-top > .mast-badge,
+  .mast-top > .mast-acc-wrap{margin-left:auto}
+  .mast-top > .mast-badge + .mast-badge + .mast-acc-wrap{margin-left:0}
+  .mast-badge{font-size:9px;letter-spacing:.1em;padding:6px 8px;min-height:34px}
+  .mast-acc{padding:4px 8px}
+  .mast-acc .nm{max-width:64px}               /* 昵称过长时省略，别把按钮撑破 */
+  .role-tag{display:none}                     /* 角色标签在窄屏由账号菜单体现 */
+  .tabs,.viewtabs{
+    display:flex;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none;gap:2px;
+  }
+  .tabs::-webkit-scrollbar,.viewtabs::-webkit-scrollbar{display:none}
+  .tab,.viewtab{flex:0 0 auto;min-height:40px;white-space:nowrap}
+
+  /* 今日案卷卡片：去掉固定宽度，跟随容器 */
+  .today{width:100%;max-width:none}
+
+  /* 成长中心/教师页的图表：高度收敛，避免一屏只看到半个图 */
+  .chart-wrap{padding:var(--s3)}
+  .growth{grid-template-columns:1fr !important}
+
+  /* 宽表格（账号列表等）：容器内横向滚动，不撑破页面 */
+  .table-scroll,.acc-table{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .table-scroll table,.acc-table table{min-width:640px}
+
+  /* 表单控件与按钮：触控友好 */
+  input,select,textarea,button{font-size:16px}  /* 16px 可避免 iOS 聚焦缩放 */
+  .btn-primary,.btn-ghost{min-height:44px}
+
+  /* 训练页：输入框与发送按钮占满整行 */
+  .composer-row{flex-wrap:nowrap}
+  .composer-input{flex:1;min-width:0}
+  .composer-row .send{flex:0 0 46px;height:46px}
+
+  /* 侧栏导轨在窄屏隐藏（内容已能从顶栏进入） */
+  .rail{display:none}
+}
+
+/* 超窄屏（<= 400px）：进一步压缩 */
+@media (max-width:400px){
+  .hero-l h1{font-size:26px}
+  .frame,.shell{padding-left:12px;padding-right:12px}
+  .wordmark .cn{font-size:20px}
+}

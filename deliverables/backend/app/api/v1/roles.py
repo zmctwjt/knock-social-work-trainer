@@ -54,12 +54,19 @@ async def teacher_stats(account: CurrentUser, session: SessionDep):
     return ok(await role_service.class_stats(session, account))
 
 
-@teacher_router.get("/learners/{owner_id}/records", summary="查看学员训练记录")
+@teacher_router.get("/learners/{owner_id}/records", summary="查看学员训练记录（分页）")
 async def teacher_learner_records(
-    owner_id: uuid.UUID, account: CurrentUser, session: SessionDep
+    owner_id: uuid.UUID,
+    account: CurrentUser,
+    session: SessionDep,
+    page: int = 1,
+    page_size: int = 20,
 ):
-    items = await role_service.learner_records(session, account, owner_id)
-    return ok({"items": [x.model_dump() for x in items], "total": len(items)})
+    return ok(
+        await role_service.learner_records(
+            session, account, owner_id, page=page, page_size=page_size
+        )
+    )
 
 
 @teacher_router.post("/learners", summary="绑定学员到名下")
@@ -81,10 +88,15 @@ async def admin_accounts(
     session: SessionDep,
     role: str | None = None,
     keyword: str | None = None,
-    limit: int = 50,
+    page: int = 1,
+    page_size: int = 50,
 ):
     return ok(
-        (await role_service.admin_list_accounts(session, role=role, keyword=keyword, limit=limit)).model_dump()
+        (
+            await role_service.admin_list_accounts(
+                session, role=role, keyword=keyword, page=page, page_size=page_size
+            )
+        ).model_dump()
     )
 
 

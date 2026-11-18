@@ -72,6 +72,14 @@ interface CardRow {
   id: string; title: string; category: string; summary: string;
 }
 
+interface Paged<T> {
+  items: T[];
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+}
+
 interface AiLog {
   id: string; purpose: string; status: string; model: string;
   latency_ms: number; degrade_reason: string | null; used_ai: boolean;
@@ -119,6 +127,8 @@ export default function AdminPage() {
   const [newWord, setNewWord] = useState({ group: 'empathy', word: '', note: '' });
   const [newLine, setNewLine] = useState({ text: '', emotion_bucket: 'mid', scenario_id: '' });
   const [accFilter, setAccFilter] = useState({ role: '', keyword: '' });
+  const [accPage, setAccPage] = useState(1);
+  const [accMeta, setAccMeta] = useState({ total: 0, pages: 0 });
   const [selected, setSelected] = useState<string[]>([]);
   // 内容维护
   const [cardForm, setCardForm] = useState({ id: '', title: '', category: '技巧', summary: '', content: '' });
@@ -132,7 +142,7 @@ export default function AdminPage() {
     if (!o) { setDenied(true); setLoading(false); return; }
     setDenied(false);
     const [a, t, g, l, s, c, ai] = await Promise.all([
-      apiGet<{ items: AccountRow[] }>('/api/v1/admin/accounts'),
+      apiGet<Paged<AccountRow>>(`/api/v1/admin/accounts?page=${accPage}&page_size=20`),
       apiGet<AdminTrend>('/api/v1/admin/trend'),
       apiGet<{ groups: RuleGroup[]; custom: CustomWord[] }>('/api/v1/admin/rule-words'),
       apiGet<{ items: ScriptLine[] }>('/api/v1/admin/script-lines'),
@@ -142,6 +152,7 @@ export default function AdminPage() {
     ]);
     setOverview(o);
     setAccounts(a?.items ?? []);
+    setAccMeta({ total: a?.total ?? 0, pages: a?.pages ?? 0 });
     setTrend(t ?? null);
     setGroups(g?.groups ?? []);
     setCustomWords(g?.custom ?? []);
@@ -150,7 +161,7 @@ export default function AdminPage() {
     setCards(c?.items ?? []);
     setAiLogs(ai ?? null);
     setLoading(false);
-  }, []);
+  }, [accPage]);
 
   useEffect(() => {
     if (account) void load();
@@ -387,10 +398,10 @@ export default function AdminPage() {
 
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
               <input placeholder="按用户名或昵称搜索" value={accFilter.keyword}
-                onChange={(e) => setAccFilter({ ...accFilter, keyword: e.target.value })}
+                onChange={(e) => { setAccFilter({ ...accFilter, keyword: e.target.value }); setAccPage(1); }}
                 style={{ ...inp, minWidth: 200 }} />
               <select value={accFilter.role}
-                onChange={(e) => setAccFilter({ ...accFilter, role: e.target.value })} style={inp}>
+                onChange={(e) => { setAccFilter({ ...accFilter, role: e.target.value }); setAccPage(1); }} style={inp}>
                 <option value="">全部角色</option>
                 <option value="student">学生</option>
                 <option value="teacher">教师</option>
@@ -442,6 +453,20 @@ export default function AdminPage() {
                 </div>
               ))}
             </div>
+
+            {accMeta.pages > 1 && (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12, fontSize: 13 }}>
+                <button className="btn-ghost" type="button" disabled={accPage <= 1}
+                  onClick={() => setAccPage((p) => Math.max(1, p - 1))}
+                  style={{ padding: '4px 12px' }}>上一页</button>
+                <span style={{ color: 'var(--ink-3)' }}>
+                  第 {accPage} / {accMeta.pages} 页，共 {accMeta.total} 个账号
+                </span>
+                <button className="btn-ghost" type="button" disabled={accPage >= accMeta.pages}
+                  onClick={() => setAccPage((p) => p + 1)}
+                  style={{ padding: '4px 12px' }}>下一页</button>
+              </div>
+            )}
           </>
         )}
 
