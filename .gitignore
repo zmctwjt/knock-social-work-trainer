@@ -48,16 +48,18 @@ src_extract/
 叩门*.zip
 
 # ── work/ 只保留工具脚本，其余忽略 ──
+# 用通配而不是逐个列：此前新增 audit_comments / audit_mobile 等脚本忘了
+# 加白名单，导致 CI 里文件不存在（No such file or directory）。
 work/*
-!work/run_all.py
-!work/audit_permissions.py
-!work/audit_roles_ui.py
-!work/audit_role_landing.py
-!work/audit_extended_api.py
-!work/audit_workbench_ui.py
-!work/seed_demo_accounts.py
-!work/seed_training_data.py
-!work/launch_backend.py
+!work/*.py
+# 但个人材料生成脚本（毕业设计文档）不公开
+work/build_taskbook*.py
+work/convert_template.py
+work/patch_*.py
+# 运行时产物
+work/pyenv/
+work/logs/
+work/qa/
 
 # Windows 保留设备名（某些命令会意外创建）
 CON
