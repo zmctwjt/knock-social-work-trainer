@@ -162,3 +162,85 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+# ══════════════════════════════════════════════════════════════
+# 公共启动器：统一 Chrome 启动与 CDP 连接
+# ──────────────────────────────────────────────────────────────
+# 为什么要收敛：8 个审查脚本原先各自复制了一份 Popen + 等待 + 连接逻辑，
+# CI 上出现过 Chrome 已响应 /json/version 但 /json/new 尚未就绪、
+# 导致 CDP websocket 连接被拒（ConnectionRefusedError）的竞态。
+# 统一后可以集中加重试与容器友好参数，不必改 8 个文件。
+# ══════════════════════════════════════════════════════════════
+
+#: 容器/CI 环境必需：沙箱在部分 runner 上无法初始化，/dev/shm 过小会导致崩溃
+CHROME_ARGS = [
+    "--headless=new",
+    "--disable-gpu",
+    "--hide-scrollbars",
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--disable-extensions",
+    "--no-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-background-networking",
+]
+
+
+def launch_chrome(window_size: str = "1440,1200", profile: Path | None = None):
+    """启动 Chrome 并返回 Popen。调用方负责 terminate。"""
+    import subprocess
+
+    prof = profile or PROFILE
+    if prof.exists():
+        shutil.rmtree(prof, ignore_errors=True)
+    prof.mkdir(parents=True, exist_ok=True)
+    return subprocess.Popen(
+        [CHROME, *CHROME_ARGS,
+         f"--remote-debugging-port={PORT}", "--remote-allow-origins=*",
+         f"--user-data-dir={prof}", f"--window-size={window_size}", "about:blank"],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+
+
+def wait_cdp_ready(timeout: float = 45.0) -> None:
+    """等待 CDP 端点可用。仅 /json/version 通不代表能建新 tab。"""
+    end = time.time() + timeout
+    last: Exception | None = None
+    while time.time() < end:
+        try:
+            http_json("/json/version")
+            return
+        except Exception as exc:  # noqa: BLE001
+            last = exc
+            time.sleep(0.5)
+    raise RuntimeError(f"CDP 端点 {timeout}s 内未就绪: {last}")
+
+
+def open_page(base: str | None = None, window_size: str = "1440,1200",
+              retries: int = 4) -> "CDP":
+    """打开一个新页面并返回已连接的 CDP。
+
+    对「建 tab 成功但 ws 连不上」的竞态做重试——这正是 CI 上踩到的失败模式。
+    """
+    url = base or BASE
+    last: Exception | None = None
+    for attempt in range(1, retries + 1):
+        wait_cdp_ready()
+        try:
+            target = http_json(f"/json/new?{url}/", method="PUT")
+        except Exception as exc:  # noqa: BLE001
+            last = exc
+            time.sleep(1.5)
+            continue
+        try:
+            cdp = CDP(target["webSocketDebuggerUrl"])
+        except Exception as exc:  # noqa: BLE001
+            last = exc
+            time.sleep(1.5)
+            continue
+        cdp.send("Page.enable")
+        cdp.send("Runtime.enable")
+        time.sleep(2.5)
+        return cdp
+    raise RuntimeError(f"打开页面失败（重试 {retries} 次）: {last}")

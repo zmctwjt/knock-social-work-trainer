@@ -2,7 +2,7 @@
 import shutil, subprocess, sys, time
 from pathlib import Path
 sys.path.insert(0, str(Path(r'F:\毕业设计\work')))
-from ui_smoke import CDP, CHROME, PORT, PROFILE, SHOTS, http_json
+from ui_smoke import CDP, CHROME, PORT, PROFILE, SHOTS, http_json, launch_chrome, open_page
 
 BASE = "http://127.0.0.1:8000"
 FAILS = []
@@ -20,18 +20,10 @@ def check(cdp, label, selector=None):
     return ok
 
 def main():
-    if PROFILE.exists():
-        shutil.rmtree(PROFILE, ignore_errors=True)
-    proc = subprocess.Popen([CHROME,"--headless=new","--disable-gpu","--hide-scrollbars",
-        "--no-first-run", f"--remote-debugging-port={PORT}", "--remote-allow-origins=*",
-        f"--user-data-dir={PROFILE}", "--window-size=390,844", "about:blank"],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    proc = launch_chrome(window_size="390,844")
     try:
-        for _ in range(40):
-            try: http_json("/json/version"); break
-            except Exception: time.sleep(0.5)
-        t = http_json(f"/json/new?{BASE}/", method="PUT")
-        cdp = CDP(t["webSocketDebuggerUrl"]); cdp.send("Page.enable"); cdp.send("Runtime.enable")
+        cdp = open_page(BASE, window_size="390,844")
+
         time.sleep(4)
 
         print("\n=== 学生端（未登录）===")

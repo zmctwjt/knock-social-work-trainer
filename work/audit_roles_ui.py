@@ -18,7 +18,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from ui_smoke import BASE, CDP, CHROME, PORT, PROFILE, SHOTS, http_json  # noqa: E402
+from ui_smoke import BASE, CDP, CHROME, PORT, PROFILE, SHOTS, http_json, launch_chrome, open_page  # noqa: E402
 
 BASE = "http://127.0.0.1:8000"
 CASES = [
@@ -38,26 +38,11 @@ def wait_hash(cdp: CDP, want: str, timeout: float = 12.0) -> bool:
 
 
 def main() -> int:
-    if PROFILE.exists():
-        shutil.rmtree(PROFILE, ignore_errors=True)
-    proc = subprocess.Popen(
-        [CHROME, "--headless=new", "--disable-gpu", "--hide-scrollbars", "--no-first-run",
-         f"--remote-debugging-port={PORT}", "--remote-allow-origins=*",
-         f"--user-data-dir={PROFILE}", "--window-size=1440,900", "about:blank"],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-    )
     failures: list[str] = []
+    proc = launch_chrome(window_size="1440,900")
     try:
-        for _ in range(40):
-            try:
-                http_json("/json/version")
-                break
-            except Exception:
-                time.sleep(0.5)
-        target = http_json(f"/json/new?{BASE}/", method="PUT")
-        cdp = CDP(target["webSocketDebuggerUrl"])
-        cdp.send("Page.enable")
-        cdp.send("Runtime.enable")
+        cdp = open_page(BASE, window_size="1440,900")
+
         time.sleep(3)
 
         for username, expect_label in CASES:
