@@ -21,7 +21,8 @@ import httpx
 
 ROOT = Path(__file__).resolve().parent.parent
 BACKEND = ROOT / "deliverables" / "backend"
-PYTHON = ROOT / "work" / "pyenv" / "Scripts" / "python.exe"
+# 用当前解释器，避免写死 Windows 的 venv 路径（CI 是 Linux）
+PYTHON = sys.executable
 PORT = 8002
 BASE = f"http://127.0.0.1:{PORT}"
 _LOG = ROOT / "work" / "logs" / "degrade-instance.log"
