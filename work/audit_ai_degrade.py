@@ -38,7 +38,12 @@ def main() -> int:
         "GLM_FALLBACK_MODELS": "glm-z1-flash",
         "GLM_MAX_RETRIES": "0",
         # 读主实例同一套库，避免另建
-        "DATABASE_URL": "mysql+aiomysql://knock:knock@127.0.0.1:3307/knock?charset=utf8mb4",
+        # 优先用环境里的 DATABASE_URL（CI 的 MySQL 在 3306），
+        # 本机默认私有实例在 3307
+        "DATABASE_URL": os.getenv(
+            "DATABASE_URL",
+            "mysql+aiomysql://knock:knock@127.0.0.1:3307/knock?charset=utf8mb4",
+        ),
         "STATIC_DIR": "",
         "RATE_LIMIT_ENABLED": "false",
     })
@@ -56,12 +61,13 @@ def main() -> int:
     try:
         for _ in range(40):
             try:
-                if httpx.get(f"{BASE}/healthz", timeout=2).status_code == 200:
+                body = httpx.get(f"{BASE}/readyz", timeout=3).json()["data"]
+                if body.get("status") == "ready":
                     break
             except Exception:  # noqa: BLE001
                 time.sleep(1)
         else:
-            print("实例未能启动")
+            print("实例未能就绪（数据库可能连不上）")
             return 1
 
         ready = httpx.get(f"{BASE}/readyz", timeout=10).json()["data"]
