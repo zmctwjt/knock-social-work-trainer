@@ -34,6 +34,17 @@ def show(label: str, resp: httpx.Response) -> dict:
 
 def main() -> int:
     c = httpx.Client(base_url=BASE, timeout=120)
+
+    # CI 里没有真实密钥，明确跳过而不是伪装通过
+    try:
+        ready = c.get(f"{BASE}/readyz", timeout=20).json()["data"]
+    except Exception as exc:  # noqa: BLE001
+        print(f"服务不可达: {exc}")
+        return 1
+    if not ready.get("ai_configured"):
+        print("SKIP: 当前实例未配置 GLM_API_KEY，真实调用验证跳过")
+        print("      （降级行为由 audit_ai_degrade.py 覆盖）")
+        return 0
     token = c.post("/api/v1/auth/login",
                    json={"username": "student01",
                          "password": PW["student01"]}).json()["data"]["tokens"]["access_token"]

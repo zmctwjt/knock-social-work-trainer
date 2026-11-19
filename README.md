@@ -64,7 +64,7 @@
 | 鉴权 | PyJWT（access/refresh）+ Argon2id 口令哈希 + RBAC 四角色 |
 | AI | httpx 自建网关对接智谱 GLM（**已用真实密钥验证**，含三级降级链） |
 | 观测 | structlog · Prometheus · OpenTelemetry（可选） |
-| 测试 | pytest（177 用例）+ 10 个端到端审查脚本 |
+| 测试 | pytest（189 用例）+ 10 个端到端审查脚本 |
 
 ---
 
@@ -319,6 +319,8 @@ python work/audit_knowledge.py       # 知识库按案例 + 关键词检索
 python work/audit_training_flow.py   # 核心训练流程（输入→评分→结算→成长→危机处置）
 python work/audit_a11y.py            # 标签页 ARIA 关联与键盘导航
 python work/audit_xss.py             # 存储型 XSS 浏览器端验证
+python work/audit_ai_live.py         # 四条 AI 链路真实调用（无密钥时跳过）
+python work/audit_ai_degrade.py      # 无效密钥下四条链路降级可用
 python work/audit_mobile.py          # 移动端 390px 无横向溢出
 python work/audit_confirm.py         # 危险操作二次确认
 ```
@@ -329,7 +331,7 @@ CI（`.github/workflows/ci.yml`）在每次推送时运行四个 job：
 | --- | --- |
 | backend | pytest（SQLite）+ 在真实 MySQL 8.0 上执行迁移与 `alembic check` |
 | frontend | tsc 类型检查 + vite 构建 + 校验图表库未进首屏 |
-| **e2e** | 真实 MySQL + 无头 Chrome，跑 13 个端到端审查脚本 |
+| **e2e** | 真实 MySQL + 无头 Chrome，跑 14 个端到端审查脚本（含 AI 降级验证） |
 | security | 密钥误提交扫描 + pip-audit 依赖漏洞 |
 
 **测试分布**（19 个模块 / 165 个测试函数，pytest 收集 166 项——含 1 个参数化展开）：

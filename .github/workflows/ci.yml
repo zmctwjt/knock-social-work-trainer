@@ -190,7 +190,8 @@ jobs:
       - name: 无浏览器审查（权限 / 接口 / 点评 / 审计）
         run: |
           set -e
-          for s in audit_permissions audit_extended_api audit_comments audit_roles_ui; do
+          # audit_ai_degrade 自带无效密钥，不需要真实 key，适合 CI
+          for s in audit_permissions audit_extended_api audit_comments audit_ai_degrade audit_roles_ui; do
             echo "::group::$s"
             python work/$s.py
             echo "::endgroup::"
