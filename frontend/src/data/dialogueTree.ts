@@ -655,7 +655,7 @@ export function isScriptLine(text: string, scenarioId: string): boolean {
     }
   }
 
-  // ★ 台词可能是「节点台词　防御台词」的拼接（评判/建议过早时会追加），
+  // ★ 台词可能是「节点台词 防御台词」的拼接（评判/建议过早时会追加），
   //   所以按全角空格切分，每一段都必须命中白名单才算合法。
   // strip 为空（纯标点）时回退比较原文。
   const parts = text.split('\u3000').filter((p) => p.trim().length > 0);

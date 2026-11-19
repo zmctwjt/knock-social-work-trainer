@@ -43,7 +43,6 @@ const PROOF = '#B23A1E';        // --proof 强调（最弱项、告警）
 const INK2 = '#5A5248';         // --ink-2 正文
 const MUTED = '#948B7C';        // --ink-4 弱化
 const RULE = '#DCD4C7';         // --rule 分割线
-const GREEN_WASH = 'rgba(47,93,80,.18)';
 
 const BASE_TEXT = {
   // 与全站同一字体栈：中文优先思源/苹方，避免图表文字与页面不一致

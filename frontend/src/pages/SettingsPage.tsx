@@ -202,7 +202,7 @@ export default function SettingsPage() {
           <b>模型：{ai.model || '智谱 GLM'}（智谱开放平台）</b>，经本项目自带的 FastAPI 网关同源转发，
           密钥不出现在前端产物里。该模型默认开启「深度推理」，本项目在请求中关闭 thinking，
           否则 token 会被思维链吃光、正文返回空。
-          {ai.lastError ? <>　最近错误：<b>{ai.lastError}</b></> : null}
+          {ai.lastError ? <> 最近错误：<b>{ai.lastError}</b></> : null}
         </div>
 
         <div className="set-row">

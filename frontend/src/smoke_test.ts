@@ -214,5 +214,5 @@ t('selfCheck 全绿', selfBad.length === 0, selfBad.map((r) => r.scenarioId));
 t('纯标点台词通过白名单', isScriptLine('……', 'W-01') === true);
 
 console.log('\n' + '='.repeat(46));
-console.log(`通过 ${pass} / ${pass + fail}` + (fail ? `　✗ 有 ${fail} 项失败` : '　全部通过 ✓'));
+console.log(`通过 ${pass} / ${pass + fail}` + (fail ? ` ✗ 有 ${fail} 项失败` : ' 全部通过 ✓'));
 process.exit(fail ? 1 : 0);

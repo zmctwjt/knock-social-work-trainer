@@ -33,7 +33,7 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     // 保留组件栈，排查时能定位到具体组件
-    // eslint-disable-next-line no-console
+     
     console.error('[ErrorBoundary] 渲染异常', error, info.componentStack);
   }
 

@@ -383,7 +383,7 @@ const HOPELESS_MARKS = [
 
 /**
  * 生成校样标记 —— 本产品的视觉记忆点。
- * · 删除线 = 扣分　· 绿色下划线 = 加分　· 红色 ▲ = 需人工复核的判断点
+ * · 删除线 = 扣分 · 绿色下划线 = 加分 · 红色 ▲ = 需人工复核的判断点
  *
  * ⚠️ 下标必须落在**原文**上：normalize() 会把「咱」扩写成「我们」使长度变化，
  *    直接拿归一化下标画线会整体偏位。因此在原文中找不到的词宁可跳过，
@@ -399,7 +399,7 @@ export function buildMarks(text: string, intent: Intent, hitWords: string[]): Pr
 
   for (const w of hitWords || []) {
     if (!w || w.length < 2) continue;
-    let idx = t.indexOf(w);
+    const idx = t.indexOf(w);
     // 归一化改写过原文（如 您→你）时，退化到原文里的近似匹配，找不到就不标
     if (idx < 0) continue;
     const key = `${idx}:${w.length}`;

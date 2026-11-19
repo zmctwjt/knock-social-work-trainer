@@ -24,7 +24,7 @@ export default function CaseSelectPage() {
   const [diff, setDiff] = useState<string>(() =>
     sessionStorage.getItem('knock.diff') || loadSettingsLocal().default_difficulty || '标准实训',
   );
-  const [nick, setNick] = useState(localStorage.getItem('knock.nick') || '');
+  const [nick] = useState(localStorage.getItem('knock.nick') || '');
   const [picked, setPicked] = useState<string | null>(null);
 
 

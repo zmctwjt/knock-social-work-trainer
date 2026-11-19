@@ -400,7 +400,7 @@ export function exportCsv(nickname: string, rows: Record<string, unknown>[]): st
     ...rows.map((r) => head.map((h) => esc(r[h])).join(',')),
   ];
   // BOM 让 Excel 正确识别 UTF-8
-  return '﻿' + lines.join('\r\n');
+  return '' + lines.join('\r\n');
 }
 
 export function downloadText(filename: string, content: string, mime = 'text/csv') {

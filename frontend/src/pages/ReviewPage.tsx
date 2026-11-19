@@ -8,8 +8,8 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store/store.tsx';
 import { getScenario } from '../data/scenarios.ts';
-import { DIMENSIONS, findWeakness } from '../services/scoring.ts';
-import { matchFlaw, deltaLabel, EXPERT_DEMOS } from '../data/expertDemo.ts';
+import { DIMENSIONS } from '../services/scoring.ts';
+import { matchFlaw, deltaLabel } from '../data/expertDemo.ts';
 import { SKILL_CARDS } from '../data/knowledge.ts';
 import { loadDebrief } from '../lib/debriefStore.ts';
 
@@ -94,7 +94,7 @@ export default function ReviewPage() {
             </div>
             <p style={{ fontSize: 12.5, color: "var(--ink-2)", marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--rule)" }}>
               最弱项：<b>{DIMENSIONS.find((d) => d.key === last.weakDim)?.name} {last.weakScore}</b>
-              　总共 {session?.notes.length ?? 0} 条逐句记录
+               总共 {session?.notes.length ?? 0} 条逐句记录
             </p>
           </>
         ) : (
@@ -216,7 +216,7 @@ export default function ReviewPage() {
     <div className="demo-compare">
       <div className="panel-h">
         逐句对照 · 你的回应 vs 专家示范
-        {cmp.length > 0 && <span className="cmp-cnt">　本次共 {notes.length} 句，列出 {cmp.length} 句</span>}
+        {cmp.length > 0 && <span className="cmp-cnt"> 本次共 {notes.length} 句，列出 {cmp.length} 句</span>}
       </div>
 
       {cmp.length === 0 && (

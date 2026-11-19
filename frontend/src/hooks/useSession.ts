@@ -17,7 +17,7 @@
  *   4. 阶段推进只能前进，不能回退
  */
 import { useState, useCallback, useRef, useEffect } from 'react';
-import type { Intent, DimensionKey, MarginNote, ChatMessage } from '../types.ts';
+import type { DimensionKey, MarginNote, ChatMessage } from '../types.ts';
 import { matchLocalRules, effectsForIntent, type MatchResult } from '../services/rules.ts';
 import { generateReply, clampEmotion } from '../services/dialogueEngine.ts';
 import { isScriptLine } from '../data/dialogueTree.ts';
@@ -178,7 +178,7 @@ export function useSession(
       stageStart: state.stageStart,
       difficulty: state.difficulty,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [state.messages, state.notes, state.emotion, state.turn, state.phase,
       state.judgeCount, state.hopelessSeen, state.blindfold, state.adjust,
       state.stageStart, state.difficulty]);

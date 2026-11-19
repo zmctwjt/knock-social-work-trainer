@@ -14,7 +14,7 @@ import type { TrainingRecord as StoreRecord } from '../store/store.tsx';
 
 /* ── 绘图常量（沿用原稿坐标）── */
 const RC = 160, RY = 150, RMAX = 100;
-const CH = 100, CY0 = 100, CY1 = 20;
+const CY0 = 100, CY1 = 20;
 const CX0 = 20, CX1 = 300;
 
 function polar(i: number, v: number) {
@@ -65,7 +65,6 @@ export default function GrowthPage() {
   // 拉不到时回落本地记录，并在页面上明确标注，避免用户误以为是完整数据。
   const [serverRecs, setServerRecs] = useState<StoreRecord[] | null>(null);
   const [dataNote, setDataNote] = useState('');
-  const [sourceBreak, setSourceBreak] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!account) return;
@@ -83,7 +82,6 @@ export default function GrowthPage() {
         setDataNote('当前显示本机记录（未能连接服务端）');
         return;
       }
-      setSourceBreak(r.source_breakdown ?? {});
       const mapped: StoreRecord[] = (r.records ?? []).map((x) => ({
         id: x.id,
         ownerId: account.id,

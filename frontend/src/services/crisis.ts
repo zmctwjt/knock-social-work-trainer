@@ -74,7 +74,10 @@ export function recommendedDirection(rawInput: string): string {
  *   2. 本卡只提供处置指引，不做安全评估结论
  *   3. 命中后由界面暂停对话输入，直到用户点「我知道了」
  */
-export function buildCrisisCard(rawInput: string, isFamilyViolence = false): CrisisCardContent | null {
+export function buildCrisisCard(
+  rawInput: string,
+  _isFamilyViolence = false,
+): CrisisCardContent | null {
   if (classifyRisk(rawInput) !== 'suicidal') return null;
 
   return {

@@ -74,7 +74,7 @@ export default function SettlePage() {
             </div>
             <p style={{ fontSize: 12.5, color: "var(--ink-2)", marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--rule)" }}>
               最弱项：<b>{DIMENSIONS.find((d) => d.key === last.weakDim)?.name} {last.weakScore}</b>
-              　总共 {session?.notes.length ?? 0} 条逐句记录
+               总共 {session?.notes.length ?? 0} 条逐句记录
             </p>
           </>
         ) : (
@@ -139,7 +139,7 @@ export default function SettlePage() {
     {weakReport && (
       <div className="rblock bad" style={{'marginTop':'var(--s6)'}}>
         <div className="k">本阶段最弱项 · 建议动作</div>
-        <h3>{weakReport.name}　{weakReport.score} 分</h3>
+        <h3>{weakReport.name} {weakReport.score} 分</h3>
         <p>{weakReport.advice.advice}</p>
         <p>
           <b>建议：</b>

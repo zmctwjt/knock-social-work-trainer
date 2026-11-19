@@ -407,7 +407,7 @@ export default function TrainingPage({ scenarioId, onExit }: {
                 </ol>
                 <div style={{ fontSize: 12.5 }}>
                   可核实资源：
-                  {(crisis?.hotlines || []).map((h) => `${h.code} ${h.label}`).join('　·　')}
+                  {(crisis?.hotlines || []).map((h) => `${h.code} ${h.label}`).join(' · ')}
                 </div>
                 <div style={{ fontSize: 12.5, marginTop: 6, opacity: 0.75 }}>
                   {crisis?.citation}

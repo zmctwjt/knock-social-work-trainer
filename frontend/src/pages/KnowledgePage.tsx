@@ -27,7 +27,6 @@ export default function KnowledgePage() {
   const [scenarioId, setScenarioId] = useState('');
   const [dimension, setDimension] = useState('');
   const [dbCards, setDbCards] = useState<DbCard[] | null>(null);
-  const [syncNote, setSyncNote] = useState('');
 
   // 管理端维护的技巧卡在数据库里；拉不到就回落静态文件，知识库仍可用
   useEffect(() => {
@@ -85,7 +84,6 @@ export default function KnowledgePage() {
         <h2>
           {merged.skills.length} 条面谈技巧 · {merged.ethics.length} 条伦理守则 · 共 {total} 张卡
         </h2>
-        {syncNote && <p className="sub">{syncNote}</p>}
       </div>
 
       <div className="kb-search">

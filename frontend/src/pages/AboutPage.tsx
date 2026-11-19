@@ -66,7 +66,7 @@ export default function AboutPage() {
         <tbody>
           <tr>
             <th>语义判别层</th>
-            <td>{AI_MODEL}（经项目自带的 Node 服务转发，密钥只存在服务端）：① 长尾意图分类　② AI 实时扮演服务对象　③ 六维语义评分（与规则底分按 4:6 融合）　④ 复盘生成</td>
+            <td>{AI_MODEL}（经项目自带的 Node 服务转发，密钥只存在服务端）：① 长尾意图分类 ② AI 实时扮演服务对象 ③ 六维语义评分（与规则底分按 4:6 融合） ④ 复盘生成</td>
             <td className="src2">关闭 AI 或未配置密钥 → 全部功能仍可用</td>
           </tr>
           <tr><th>规则层</th><td>{RULE_WORDS} 条关键词规则 + 对话树状态机 + 危机硬拦截：六维判定、情绪值、阶段推进</td><td className="src">零延迟兜底，始终本地运行</td></tr>
@@ -106,8 +106,8 @@ export default function AboutPage() {
   
     <div className="danger-zone">
       <div className="k" style={{'fontFamily':'var(--mono)','fontSize':'10px','letterSpacing':'.18em','textTransform':'uppercase','paddingBottom':'8px','borderBottom':'1px solid #E8C4BC','marginBottom':'var(--s4)'}}>危机资源 · 如果你或身边的人正处于危机中</div>
-      <p className="hot">12356　<span>全国统一心理援助热线 · 24 小时 · 免费 · 精神科医师与心理治疗师接听</span></p>
-      <p className="hot warn">110　<span>报警</span>　·　120　<span>急救</span></p>
+      <p className="hot">12356 <span>全国统一心理援助热线 · 24 小时 · 免费 · 精神科医师与心理治疗师接听</span></p>
+      <p className="hot warn">110 <span>报警</span> · 120 <span>急救</span></p>
       <p className="cite">12356 依据《国家卫生健康委关于应用"12356"全国统一心理援助热线电话号码的通知》（国卫医政函〔2024〕259 号），已与 110 / 119 / 120 建立联动机制。<br />机构内部支持渠道（实习督导 / 心理健康教育与咨询中心）请在使用前自行填写，此处不预置未经核实的号码。</p>
     </div>
   

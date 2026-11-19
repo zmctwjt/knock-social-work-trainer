@@ -56,7 +56,8 @@ jobs:
           RATE_LIMIT_ENABLED: 'false'
           GLM_API_KEY: ''
           JWT_SECRET: ci-test-secret-0123456789abcdef012345
-        run: python -m pytest -q
+        # 覆盖率门槛 70%：低于则失败，防止新增代码不写测试
+        run: python -m pytest -q --cov=app --cov-fail-under=70 --cov-report=term:skip-covered
 
       - name: 迁移可在真实 MySQL 上执行
         working-directory: deliverables/backend
@@ -87,6 +88,10 @@ jobs:
       - name: 类型检查
         working-directory: frontend
         run: npx tsc --noEmit
+
+      - name: ESLint
+        working-directory: frontend
+        run: npm run lint
 
       - name: 前端单元测试（知识库合并逻辑）
         working-directory: frontend

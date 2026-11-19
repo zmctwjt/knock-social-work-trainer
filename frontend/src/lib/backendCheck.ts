@@ -28,7 +28,7 @@ const wa = (m: string, fix?: string) => {
 /* ══════════ 1. 环境变量 ══════════ */
 console.log('\n\x1b[1m[1] 环境配置\x1b[0m');
 const envPath = path.join(ROOT, '.env.local');
-let env: Record<string, string> = {};
+const env: Record<string, string> = {};
 if (!fs.existsSync(envPath)) {
   no('.env.local 不存在', 'cp .env.example .env.local 然后填入真实值');
 } else {
@@ -129,8 +129,8 @@ try {
 /* ══════════ 汇总 ══════════ */
 console.log('\n' + '═'.repeat(52));
 const total = pass + fail + warn;
-console.log(`通过 ${pass} / ${total}　` + (fail ? `\x1b[31m失败 ${fail}\x1b[0m` : '\x1b[32m全部通过\x1b[0m')
-  + (warn ? `　警告 ${warn}` : ''));
+console.log(`通过 ${pass} / ${total} ` + (fail ? `\x1b[31m失败 ${fail}\x1b[0m` : '\x1b[32m全部通过\x1b[0m')
+  + (warn ? ` 警告 ${warn}` : ''));
 if (fail) {
   console.log('\n有必失败项，暂时不要提交。按上面的 → 提示逐条修。');
   process.exit(1);

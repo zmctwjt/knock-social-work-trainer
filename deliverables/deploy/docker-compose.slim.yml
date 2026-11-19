@@ -1,0 +1,27 @@
+# 精简验证用覆盖文件
+#
+# 目的：验证「应用到数据库/缓存/反代」这条主链路能否真的用容器跑起来。
+# 不启动 prometheus / grafana / loki / 三个 exporter —— 它们是要几 GB 的
+# 观测栈，与本机"不额外安装软件"的约定冲突，且与应用可用性无关。
+#
+# 用法（显式列出要启动的服务，未列出的不会创建）：
+#   docker compose -f docker-compose.prod.yml -f docker-compose.slim.yml \
+#     up -d mysql redis api nginx
+#
+# 端口全部避开本机已占用的 80 / 8080 / 6379。
+
+services:
+  mysql:
+    ports:
+      # 宿主机 3308 → 容器 3306，避开本机 MySQL 3307
+      - "127.0.0.1:3308:3306"
+
+  api:
+    # 只对本机暴露，供冒烟脚本直连；正常流量走 nginx
+    ports:
+      - "127.0.0.1:8005:8000"
+
+  nginx:
+    ports:
+      # 宿主机 18080 → nginx 的 8080（容器内非特权端口）
+      - "127.0.0.1:18080:8080"

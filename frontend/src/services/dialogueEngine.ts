@@ -404,7 +404,7 @@ export function generateReply(
     const defensePool = DEFENSE_LINES.map((d) => d.text);
     const defense = defensePool[Math.min(Math.floor(emotion / 35), 2)];
     return {
-      text: `${node.lines[variant]}　${defense}`,
+      text: `${node.lines[variant]} ${defense}`,
       nodeId: node.id,
       fromScriptLibrary: true,
       hasDefense: true,
@@ -539,7 +539,7 @@ function stageFallbackNode(
  */
 export function selfCheck(): { scenarioId: string; ok: boolean; bad: string[] }[] {
   const results: { scenarioId: string; ok: boolean; bad: string[] }[] = [];
-  for (const [sid, tree] of Object.entries(TREES)) {
+  for (const sid of Object.keys(TREES)) {
     const bad: string[] = [];
     const probes = [
       '我理解', '您理解', '我理解你现在很辛苦', '我理解该怎么做',
@@ -553,10 +553,10 @@ export function selfCheck(): { scenarioId: string; ok: boolean; bad: string[] }[
       const sc = { id: sid } as Scenario;
       for (const emotion of [20, 50, 80]) {
         const r = generateReply(sc, 3, emotion, p, m);
-        // ⚠️ 必须校验整句，不能只取 split('　')[0]：
-        //    评判/建议过早会在节点台词后追加「　防御台词」，
+        // ⚠️ 必须校验整句，不能只取 split(' ')[0]：
+        //    评判/建议过早会在节点台词后追加「 防御台词」，
         //    只查前半句等于放过了真正可能出问题的那半句。
-        //    isScriptLine 内部已按「　」切分并逐段比对白名单。
+        //    isScriptLine 内部已按「 」切分并逐段比对白名单。
         if (r.text && !isScriptLine(r.text, sid)) {
           bad.push(`emotion=${emotion} input="${p}" → "${r.text}"`);
         }
