@@ -18,7 +18,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from ui_smoke import BASE, CDP, CHROME, PORT, PROFILE, SHOTS, http_json, launch_chrome, open_page  # noqa: E402
+from ui_smoke import wait_text, BASE, CDP, CHROME, PORT, PROFILE, SHOTS, http_json, launch_chrome, open_page  # noqa: E402
 
 BASE = "http://127.0.0.1:8000"
 CASES = [
@@ -91,9 +91,9 @@ def main() -> int:
                 time.sleep(1)
                 cdp.eval("location.hash = '#/teacher'")
                 reached_teacher = wait_hash(cdp, "#/teacher", timeout=12)
-            time.sleep(2)
-            txt = cdp.eval("document.body.innerText") or ""
-            has_workspace = "教师工作台 · TEACHER" in txt
+            # 轮询而非固定 sleep：教师工作台挂载时要拉多个接口，
+            # 固定等待在机器忙时会偶发失败
+            has_workspace = wait_text(cdp, "教师工作台 · TEACHER", timeout=12)
             print(f"  教师工作台: hash到达={reached_teacher} 页面渲染={has_workspace}")
             if expect_label in ("教师", "管理员") and not has_workspace:
                 failures.append(f"{username}: 应可访问教师工作台")

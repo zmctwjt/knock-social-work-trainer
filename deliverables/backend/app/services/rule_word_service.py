@@ -254,3 +254,33 @@ __all__ = [
     "remove_custom_word",
     "DimensionKey",
 ]
+
+
+async def public_wordbook() -> dict[str, object]:
+    """公开的判定词表（学员端知识库「判定词表」用）。
+
+    为什么单独做一个公开视图而不是复用管理端接口：
+    管理端的 `list_groups` 只返回各组**数量**与自定义条目，从不返回基线词，
+    因为它是给"维护者"看的。而任务书要求学员能"查阅判定词表"——
+    学员要看的是**具体词条**，才知道哪些表达会被判为评判、建议过早等。
+
+    危机 / 无望感受两组（PROTECTED_GROUPS）照常展示词条：
+    识别风险表达本身就是社工训练内容（教材里也列了风险信号），
+    隐藏反而与教学目标相悖；这两组只是不允许被接口禁用基线词。
+    """
+    groups: list[dict[str, object]] = []
+    for group in WORD_GROUPS:
+        words = OVERLAY.effective(group)
+        groups.append(
+            {
+                "group": group,
+                "label": GROUP_LABELS.get(group, group),
+                "words": words,
+                "count": len(words),
+                "protected": group in PROTECTED_GROUPS,
+            }
+        )
+    return {
+        "groups": groups,
+        "total": sum(int(g["count"]) for g in groups),
+    }

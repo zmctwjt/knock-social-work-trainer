@@ -187,9 +187,48 @@ CHROME_ARGS = [
 ]
 
 
+def _port_busy(port: int) -> bool:
+    try:
+        import socket
+
+        with socket.socket() as sk:
+            sk.settimeout(0.4)
+            return sk.connect_ex(("127.0.0.1", port)) == 0
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _free_port(port: int, wait: float = 10.0) -> None:
+    """确保调试端口空闲。
+
+    踩过的坑：上一个审查脚本的 Chrome 还没退干净时，下一个脚本会
+    ①删掉它正在用的 profile 目录，②新 Chrome 抢不到 9222 直接退出，
+    ③`wait_cdp_ready` 反而连上那个僵尸实例 → 页面状态错乱，
+    表现为"单独跑通过、批量跑失败"的诡异 flaky。
+    """
+    deadline = time.time() + wait
+    while _port_busy(port) and time.time() < deadline:
+        if os.name == "nt":
+            subprocess.run(
+                ["powershell.exe", "-NoProfile", "-Command",
+                 f"Get-NetTCPConnection -LocalPort {port} -State Listen "
+                 "-ErrorAction SilentlyContinue | "
+                 "ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }"],
+                capture_output=True, timeout=8,
+            )
+        else:
+            subprocess.run(["sh", "-c", f"fuser -k {port}/tcp 2>/dev/null"],
+                           capture_output=True, timeout=8)
+        time.sleep(0.5)
+
+
 def launch_chrome(window_size: str = "1440,1200", profile: Path | None = None):
     """启动 Chrome 并返回 Popen。调用方负责 terminate。"""
     import subprocess
+
+    # 先保证端口空闲，再动 profile 目录：顺序反了会把上一个进程
+    # 正在使用的目录删掉，制造僵尸实例
+    _free_port(PORT)
 
     prof = profile or PROFILE
     if prof.exists():
@@ -201,6 +240,25 @@ def launch_chrome(window_size: str = "1440,1200", profile: Path | None = None):
          f"--user-data-dir={prof}", f"--window-size={window_size}", "about:blank"],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
+
+
+def wait_text(cdp: "CDP", needle: str, timeout: float = 12.0) -> bool:
+    """轮询等待页面文本出现。
+
+    固定 sleep 在页面变复杂后会变成偶发失败（本项目的教师工作台加了
+    案例管理页签后，挂载时要多拉一个接口，sleep(2) 就不够了）。
+    统一改为轮询，消除这类 flaky。
+    """
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            body = cdp.eval("document.body.innerText") or ""
+            if needle in body:
+                return True
+        except Exception:  # noqa: BLE001
+            pass
+        time.sleep(0.3)
+    return False
 
 
 def wait_cdp_ready(timeout: float = 45.0) -> None:

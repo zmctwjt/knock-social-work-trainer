@@ -1,9 +1,13 @@
 /**
- * 07 知识库 —— 19 张技巧卡 + 12 条伦理守则
+ * 07 知识库 —— 技巧卡 + 伦理守则 + 判定词表
  *
  * 任务书要求「支持按案例与关键词检索」，因此提供三类筛选：
  * 关键词（标题/正文/条款来源）、案例（该卡对应哪类服务对象）、维度（六维能力）。
  * 三者可叠加，命中数实时显示。
+ *
+ * 判定词表来自 `/api/v1/rule-words`：任务书要求学员能
+ * "查阅技巧卡、伦理守则与判定词表"，管理端那份只给维护者看数量，
+ * 学员要看具体词条才知道哪些表达会被判为评判、建议过早。
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -14,12 +18,25 @@ import { useTabKeys } from '../lib/useTabKeys.ts';
 import { apiGet } from '../lib/authClient.ts';
 import { mergeKnowledge, type DbCard } from '../lib/knowledgeMerge.ts';
 
+/** 判定词表分组（/api/v1/rule-words 返回结构） */
+interface WordGroup {
+  group: string;
+  label: string;
+  words: string[];
+  count: number;
+  protected: boolean;
+}
+
 export default function KnowledgePage() {
   const nav = useNavigate();
-  const [tab, setTab] = useState<'skill' | 'ethic'>('skill');
-  // 知识库只有两个标签，仍按 WAI-ARIA tabs 模式支持方向键切换
+  const [tab, setTab] = useState<'skill' | 'ethic' | 'word'>('skill');
+  // 三个标签，按 WAI-ARIA tabs 模式支持方向键切换
   const onTabKeyDown = useTabKeys(
-    [{ key: 'skill' as const }, { key: 'ethic' as const }],
+    [
+      { key: 'skill' as const },
+      { key: 'ethic' as const },
+      { key: 'word' as const },
+    ],
     tab,
     setTab,
   );
@@ -34,6 +51,15 @@ export default function KnowledgePage() {
       setDbCards(r?.items ?? null);
     });
   }, []);
+
+  // 判定词表（公开只读接口）：任务书要求学员能"查阅技巧卡、伦理守则与判定词表"
+  const [wordbook, setWordbook] = useState<WordGroup[] | null>(null);
+  useEffect(() => {
+    void apiGet<{ groups: WordGroup[] }>('/api/v1/rule-words').then((r) => {
+      setWordbook(r?.groups ?? null);
+    });
+  }, []);
+  const wordTotal = (wordbook ?? []).reduce((n, g) => n + g.count, 0);
 
   // 数据库为准 + 静态补元数据（详见 lib/knowledgeMerge.ts 顶部说明）
   const merged = useMemo(
@@ -82,7 +108,7 @@ export default function KnowledgePage() {
       <div className="kb-head">
         <div className="k">知识库 · Knowledge Base</div>
         <h2>
-          {merged.skills.length} 条面谈技巧 · {merged.ethics.length} 条伦理守则 · 共 {total} 张卡
+          {merged.skills.length} 条面谈技巧 · {merged.ethics.length} 条伦理守则 · {wordTotal} 条判定词 · 共 {total + wordTotal} 项
         </h2>
       </div>
 
@@ -95,7 +121,7 @@ export default function KnowledgePage() {
           aria-label="搜索知识库"
         />
         <span className="cnt">
-          {hasFilter ? `${hits} 条命中` : `${total} 张卡`}
+          {hasFilter ? `${hits} 条命中` : `${total} 张卡 · ${wordTotal} 条词`}
         </span>
       </div>
 
@@ -139,6 +165,12 @@ export default function KnowledgePage() {
           tabIndex={tab === 'ethic' ? 0 : -1}
           onClick={() => setTab('ethic')}>
           伦理守则速查（{ethics.length}）
+        </button>
+        <button className="kb-tab" role="tab" id="tab-word"
+          aria-controls="panel-kb" aria-selected={tab === 'word'}
+          tabIndex={tab === 'word' ? 0 : -1}
+          onClick={() => setTab('word')}>
+          判定词表（{wordTotal}）
         </button>
       </div>
 
@@ -188,6 +220,41 @@ export default function KnowledgePage() {
               </article>
             ))}
           </div>
+        </div>
+      )}
+
+      {tab === 'word' && (
+        <div className="kb-panel on" role="tabpanel" id="panel-kb"
+          aria-labelledby="tab-word">
+          <div className="kb-empty" style={{ marginBottom: 14 }}>
+            系统判定用词以教材条款为依据。左列为正常表达（同感、提问、陪伴），
+            右列为需要警惕的表达（评判、建议过早、毒性积极）。
+            危机级与无望感两组是安全边界，其基线词不可被禁用。
+          </div>
+          {!wordbook && <div className="kb-empty">加载中…</div>}
+          {wordbook?.map((g) => (
+            <div key={g.group} className="wb-panel" style={{ marginBottom: 12 }}>
+              <div className="wb-panel-h">
+                <span>{g.label}</span>
+                <span className="hint">
+                  {g.count} 条{g.protected ? ' · 安全边界，基线不可禁用' : ''}
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '10px 0' }}>
+                {g.words.map((w) => (
+                  <span
+                    key={w}
+                    className="tag"
+                    style={g.protected ? {
+                      borderColor: 'var(--proof)', color: 'var(--proof)',
+                    } : undefined}
+                  >
+                    {w}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

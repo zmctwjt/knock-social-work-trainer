@@ -22,7 +22,7 @@ from app.domain.schemas import (
     ScenarioOut,
     difficulty_label_of,
 )
-from app.services import content_service
+from app.services import content_service, rule_word_service
 
 router = APIRouter(tags=["案例与知识卡"])
 
@@ -99,3 +99,14 @@ async def list_cards(
     rows = await content_service.list_cards(session, category=category, keyword=keyword)
     items = [KnowledgeCardOut.model_validate(row) for row in rows]
     return ok(KnowledgeCardListOut(items=items, total=len(items)))
+
+
+@router.get("/rule-words", response_model=Envelope[dict], summary="判定词表（学员可查阅）")
+async def list_rule_words_public(session: SessionDep):
+    """判定词表公开视图。
+
+    任务书要求学员端知识库能"查阅技巧卡、伦理守则与判定词表"。
+    管理端接口只给维护者看数量与自定义项，学员要看具体词条，
+    因此单独提供这个只读视图（不暴露增删改）。
+    """
+    return ok(await rule_word_service.public_wordbook())

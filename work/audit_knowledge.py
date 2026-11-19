@@ -5,7 +5,8 @@
 2. 按案例筛选生效，且与关键词可叠加；
 3. 清空筛选恢复全部；
 4. 六维筛选生效；
-5. 无横向溢出（移动端）。
+5. 判定词表页签可切换且渲染词条（任务书要求可查阅词表）；
+6. 无横向溢出（移动端）。
 """
 from __future__ import annotations
 
@@ -131,6 +132,31 @@ def main() -> int:
         overflow = cdp.eval(
             "document.documentElement.scrollWidth - document.documentElement.clientWidth"
         )
+        print("\n=== 判定词表（任务书要求可查阅）===")
+        tab_ok = cdp.eval(
+            """(() => {
+              const b = [...document.querySelectorAll('.kb-tab')]
+                .find(x => x.textContent.includes('判定词表'));
+              if (!b) return false;
+              b.click();
+              return true;
+            })()"""
+        )
+        time.sleep(2)
+        word_info = cdp.eval(
+            """(() => ({
+              panels: document.querySelectorAll('.kb-panel .wb-panel').length,
+              words: document.querySelectorAll('.kb-panel .wb-panel .tag').length,
+            }))()"""
+        )
+        print(f"  词表页签: {tab_ok} 分组: {word_info['panels']} 词条: {word_info['words']}")
+        if not tab_ok:
+            FAILS.append("找不到「判定词表」页签")
+        if int(word_info["panels"]) != 9:
+            FAILS.append(f"词表分组数异常: {word_info['panels']}（应为 9）")
+        if int(word_info["words"]) < 100:
+            FAILS.append(f"词条数量异常: {word_info['words']}（应上百）")
+
         print(f"  横向溢出: {overflow}px")
         if (overflow or 0) > 2:
             FAILS.append(f"移动端横向溢出 {overflow}px")
