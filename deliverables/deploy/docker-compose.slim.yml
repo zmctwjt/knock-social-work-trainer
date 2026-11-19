@@ -10,18 +10,24 @@
 #
 # 端口全部避开本机已占用的 80 / 8080 / 6379。
 
+# ⚠️ 必须用 `!override`：compose 合并多文件时，ports 列表是**追加**而非
+# 替换。不加 override 的话 nginx 会同时保留 prod 里的 0.0.0.0:80，
+# 而 80 被本机 Apache 占用 → 容器起不来（"ports are not available"）。
+
 services:
   mysql:
-    ports:
+    ports: !override
       # 宿主机 3308 → 容器 3306，避开本机 MySQL 3307
       - "127.0.0.1:3308:3306"
 
   api:
-    # 只对本机暴露，供冒烟脚本直连；正常流量走 nginx
-    ports:
+    ports: !override
+      # 只对本机暴露，供冒烟脚本直连；正常流量走 nginx
       - "127.0.0.1:8005:8000"
 
   nginx:
-    ports:
-      # 宿主机 18080 → nginx 的 8080（容器内非特权端口）
+    ports: !override
+      # 宿主机 18080 → nginx 的 8080（HTTP，会 301 跳到 HTTPS）
       - "127.0.0.1:18080:8080"
+      # 宿主机 18443 → nginx 的 8443（HTTPS 终点）
+      - "127.0.0.1:18443:8443"

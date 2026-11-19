@@ -172,7 +172,9 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./nginx/certs:/etc/nginx/certs:ro
-      - ./static:/usr/share/nginx/html:ro
+      # 直接挂前端构建产物；原先是 ./static 需手工拷贝，
+      # 漏拷就会导致访问 / 返回 403（见部署验证状态 2.1 缺陷 2）
+      - ../../frontend/dist:/usr/share/nginx/html:ro
     security_opt:
       - no-new-privileges:true
     cap_drop:
