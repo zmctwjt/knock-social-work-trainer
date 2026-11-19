@@ -209,7 +209,10 @@ def report(port: int, dev: bool) -> None:
     print(f"   接口文档   {url}/docs")
     print(f"   运行状态   {line}")
     print("  " + "─" * 56)
-    print("   首次使用：点右上角「登录 / 注册」注册任意账号即可开始训练。")
+    print("   演示账号   student01 / Student@12345   （学生）")
+    print("              teacher01 / Teacher@12345   （教师）")
+    print("              admin01   / Admin@12345     （管理员）")
+    print("   账号说明   不开放自助注册，由管理员在「管理后台 → 账号管理」创建。")
     print()
 
 

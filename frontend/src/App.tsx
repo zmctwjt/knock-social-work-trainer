@@ -49,7 +49,7 @@ function AccountChip() {
     return (
       <button className="mast-badge" type="button" onClick={() => nav('/login')}
         style={{ cursor: 'pointer' }}>
-        登录 / 注册
+        登录
       </button>
     );
   }
