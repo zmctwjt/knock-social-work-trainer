@@ -4,7 +4,9 @@
  * 视觉与学生端（成长中心 P6）对齐：衬线大标题、等宽小字标签、
  * 纸色卡片、细分割线。样式用 `wb-*` 公共类而非内联，避免两端走形。
  *
- * 四个视图：班级总览 / 学员画像 / 训练趋势 / 内容查阅。
+ * 三个视图：班级总览 / 学员画像 / 训练趋势。
+ * 原「内容查阅」已下线：与学员端知识库同一份数据，只是少了筛选，
+ * 教师导航里已有「知识库」入口，重复入口反而增加困惑。
  * 权限以服务端为准——本页只是入口，真正的隔离在 require_roles 与
  * accounts.teacher_id 归属过滤上。
  */
@@ -78,7 +80,6 @@ const TABS = [
   { key: '班级总览', no: '01' },
   { key: '学员画像', no: '02' },
   { key: '训练趋势', no: '03' },
-  { key: '内容查阅', no: '04' },
 ] as const;
 type Tab = (typeof TABS)[number]['key'];
 
@@ -102,10 +103,6 @@ export default function TeacherPage() {
   const [detail, setDetail] = useState<LearnerDetail | null>(null);
   const [records, setRecords] = useState<RecordRow[]>([]);
   const [selected, setSelected] = useState<Learner | null>(null);
-  const [cards, setCards] = useState<
-    { id: string; title: string; category: string; summary: string }[]
-  >([]);
-  const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
@@ -152,12 +149,6 @@ export default function TeacherPage() {
   }, [loadDetail]);
 
   useEffect(() => { void load(); }, [load]);
-
-  useEffect(() => {
-    void apiGet<{ items: typeof cards }>('/api/v1/knowledge/cards').then((r) => {
-      setCards(r?.items ?? []);
-    });
-  }, []);
 
   async function openLearner(x: Learner) {
     setSelected(x);
@@ -225,14 +216,6 @@ export default function TeacherPage() {
     setMsg(r.ok ? `已将 ${name} 加入名下学员` : r.msg);
     if (r.ok) { setBindName(''); void load(); }
   }
-
-  const filteredCards = useMemo(() => {
-    const q = keyword.trim();
-    if (!q) return cards.slice(0, 20);
-    return cards.filter(
-      (c) => c.title.includes(q) || c.summary.includes(q) || c.category.includes(q),
-    ).slice(0, 30);
-  }, [cards, keyword]);
 
   if (!account) {
     return (
@@ -629,47 +612,6 @@ export default function TeacherPage() {
           </>
         )}
 
-        {/* ── 04 内容查阅 ── */}
-        {tab === '内容查阅' && (
-          <div className="wb-panel">
-            <div className="wb-panel-h">
-              <span>技巧卡与伦理守则</span>
-              <span className="hint">共 {cards.length} 条</span>
-            </div>
-            <div className="wb-form">
-              <input
-                className="wb-input"
-                style={{ flex: 1, minWidth: 200 }}
-                placeholder="按标题、摘要或分类搜索"
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-              />
-            </div>
-            {filteredCards.length === 0 && (
-              <div className="wb-empty">
-                <b>没有匹配内容</b>
-                换个关键词试试，或清空搜索框查看全部。
-              </div>
-            )}
-            {filteredCards.map((c) => (
-              <div key={c.id} className="wb-row" style={{ alignItems: 'flex-start',
-                flexDirection: 'column', gap: 4 }}>
-                <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', width: '100%' }}>
-                  <span className="name">{c.title}</span>
-                  <span className="tag">{c.category}</span>
-                  <span className="spacer" />
-                  <span className="mono">{c.id}</span>
-                </div>
-                {c.summary && (
-                  <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-3)',
-                    lineHeight: 1.65 }}>
-                    {c.summary}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
         </div>
       </div>
     </div>

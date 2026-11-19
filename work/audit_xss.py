@@ -126,15 +126,17 @@ def main() -> int:
         time.sleep(2)
         check_page(cdp, "知识库", "__xss_fired")
 
-        print("\n=== 3. 教师工作台内容查阅 ===")
-        login(cdp, "teacher01")
+        # 教师端「内容查阅」已下线（与学员端知识库重复）。
+        # 改在管理端「内容维护」验证同一份数据库卡片的渲染安全性。
+        print("\n=== 3. 管理端内容维护 ===")
+        login(cdp, "admin01")
         time.sleep(2)
         ok = cdp.eval(
             """(() => {
               const b = [...document.querySelectorAll('button.wb-tab')].find(x => {
                 const c = x.cloneNode(true);
                 c.querySelectorAll('.no').forEach(n => n.remove());
-                return c.textContent.trim() === '内容查阅';
+                return c.textContent.trim() === '内容维护';
               });
               if (!b) return false;
               b.click();
@@ -142,8 +144,8 @@ def main() -> int:
             })()"""
         )
         time.sleep(3)
-        print(f"  切到内容查阅: {ok}")
-        check_page(cdp, "教师端", "__xss_fired")
+        print(f"  切到内容维护: {ok}")
+        check_page(cdp, "管理端", "__xss_fired")
 
         cdp.close()
     finally:

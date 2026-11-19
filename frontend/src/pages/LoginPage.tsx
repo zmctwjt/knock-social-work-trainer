@@ -130,7 +130,7 @@ export default function LoginPage() {
             {serverMode && (
               <button className="btn-ghost login-submit" type="button"
                 onClick={enterGuest} disabled={busy} style={{ marginTop: 8 }}>
-                以访客身份浏览（只读）
+                快速体验（只读，无需账号）
               </button>
             )}
           </div>

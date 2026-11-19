@@ -122,7 +122,9 @@ const K_SESSION = 'knock.session.';
 function readBlindfold(): boolean {
   try {
     const raw = localStorage.getItem('knock.settings');
-    return raw ? (JSON.parse(raw).blindfold_default ?? true) : true;
+    // 默认关闭：本系统的卖点是「说一句当场告诉你共情到位还是越界」，
+    // 默认隐藏分数等于把卖点关掉。需要时可自行开启。
+    return raw ? (JSON.parse(raw).blindfold_default ?? false) : false;
   } catch {
     return true;
   }

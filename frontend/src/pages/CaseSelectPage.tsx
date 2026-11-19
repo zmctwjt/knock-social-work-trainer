@@ -7,7 +7,6 @@ import { useNavigate } from 'react-router-dom';
 import { SCENARIOS } from '../data/scenarios.ts';
 import { useStore } from '../store/store.tsx';
 import { loadSettingsLocal, saveSettingsLocal, type UserSettings } from '../lib/db.ts';
-import type { CustomScript } from './EditorPage.tsx';
 
 const DISK = ['#2F5D50', '#7A5C42', '#6B6A72', '#9A7430', '#22463C', '#5A5248',
   '#6B5B7A', '#3E5C6B', '#6B4A3E', '#4A5B3E', '#5C4A6B', '#3E4A5C'];
@@ -29,20 +28,14 @@ export default function CaseSelectPage() {
   const [picked, setPicked] = useState<string | null>(null);
 
 
-  /** 内置 12 位 + 编辑器创建的自定义角色 */
-  const custom = loadSettingsLocal().custom_scripts as CustomScript[];
-  const all = [
-    ...SCENARIOS.map((x) => ({
-      id: x.id, name: x.name, age: x.age, gender: x.gender,
-      archetype: x.archetype, difficulty: x.difficulty,
-      sensitiveTag: x.sensitiveTag, brief: x.brief, custom: false,
-    })),
-    ...custom.map((x) => ({
-      id: x.id, name: x.name, age: x.age, gender: x.gender,
-      archetype: x.archetype, difficulty: x.difficulty,
-      sensitiveTag: x.sensitiveTag, brief: x.brief, custom: true,
-    })),
-  ];
+  /** 内置 12 位服务对象。
+      自定义剧本功能已下线：编辑器无入口，创建链路不通，
+      留着只会让选角页展示一份永远为空的数据。 */
+  const all = SCENARIOS.map((x) => ({
+    id: x.id, name: x.name, age: x.age, gender: x.gender,
+    archetype: x.archetype, difficulty: x.difficulty,
+    sensitiveTag: x.sensitiveTag, brief: x.brief, custom: false,
+  }));
 
   const sel = all.find((x) => x.id === picked);
 
@@ -70,7 +63,7 @@ export default function CaseSelectPage() {
           <div className="k">难度选择 · Difficulty</div>
           <h2>选择本次面谈的服务对象</h2>
         </div>
-        <div className="n">共 {all.length} 位角色{custom.length ? `（含 ${custom.length} 个自定义）` : ''} · 已选 {diff}<br />难度 2 – 5 星</div>
+        <div className="n">共 {all.length} 位角色 · 已选 {diff}<br />难度 2 – 5 星</div>
       </div>
 
       <div className="diff-picker" role="group" aria-label="难度选择">

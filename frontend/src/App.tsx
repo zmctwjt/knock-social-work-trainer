@@ -30,7 +30,6 @@ import SettingsPage from './pages/SettingsPage.tsx';
 const TeacherPage = lazy(() => import('./pages/TeacherPage.tsx'));
 const AdminPage = lazy(() => import('./pages/AdminPage.tsx'));
 import { ROLE_LABEL, navItemsFor, type Role } from './lib/authClient.ts';
-import EditorPage from './pages/EditorPage.tsx';
 
 
 function AccountChip() {
@@ -302,7 +301,6 @@ function Routed() {
           <Route path="/growth" element={<GrowthPage />} />
           <Route path="/knowledge" element={<KnowledgePage />} />
           <Route path="/about" element={<AboutPage />} />
-          <Route path="/editor" element={<EditorPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/teacher" element={
             <RoleGuard allow={['teacher', 'admin']}>
