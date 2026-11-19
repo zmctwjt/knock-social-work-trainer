@@ -18,7 +18,7 @@ from datetime import UTC, date, datetime, timedelta
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.models import Account, TrainingRecord, TrainingSession
+from app.domain.models import Account, TrainingRecord, TrainingSession, Turn
 from app.domain.schemas import (
     AdminTrendOut,
     ClassTrendOut,
@@ -415,3 +415,107 @@ async def admin_heatmap(
         "thresholds": [t1, t2, t3],
         "max_daily": max(counts.values()) if counts else 0,
     }
+
+
+# ═══════════════════════════════════════════════════════════
+# 成长中心（服务端口径）
+# ═══════════════════════════════════════════════════════════
+
+
+async def growth(
+    session: AsyncSession, account: Account, *, days: int = 14
+) -> "dict[str, object]":
+    """学员成长数据。
+
+    为什么要有这个接口：成长中心原先读浏览器 localStorage，
+    教师端读服务端，两边数据源不同；学生换设备后自己的成长为空，
+    教师却仍能看到记录。这里统一以服务端为唯一口径。
+
+    另外单列 `source_breakdown`：综合分在 AI 可用时是"规则 40% + AI 60%"，
+    不可用时是"100% 规则"，两种口径的分数不可直接比较，
+    界面需要据此标注，避免把不可比的分数画进同一条曲线。
+    """
+    from app.domain.schemas import GrowthOut, GrowthRecordOut
+
+    rows = list(
+        (
+            await session.execute(
+                select(TrainingRecord)
+                .where(TrainingRecord.owner_id == account.id)
+                .order_by(TrainingRecord.created_at)
+            )
+        ).scalars().all()
+    )
+
+    total_turns = (
+        await session.execute(
+            select(func.count(Turn.id))
+            .select_from(Turn)
+            .join(TrainingSession, TrainingSession.id == Turn.session_id)
+            .where(TrainingSession.owner_id == account.id)
+        )
+    ).scalar_one()
+
+    if not rows:
+        return GrowthOut(total_turns=int(total_turns or 0)).model_dump()
+
+    totals = [int(r.score_total or 0) for r in rows]
+    dims = await _dimension_averages(session, [account.id])
+
+    # 活跃天数与连续天数（按 UTC 自然日）
+    day_set = {_day(r.created_at) for r in rows if r.created_at}
+    active_days = len(day_set)
+    streak = 0
+    cursor = datetime.now(UTC).date()
+    for _ in range(400):
+        if cursor.isoformat() in day_set:
+            streak += 1
+            cursor -= timedelta(days=1)
+            continue
+        # 今天还没练不算断，从昨天开始算
+        if cursor == datetime.now(UTC).date():
+            cursor -= timedelta(days=1)
+            continue
+        break
+
+    source_breakdown: dict[str, int] = defaultdict(int)
+    for r in rows:
+        source_breakdown[r.score_source or "blend"] += 1
+
+    records = [
+        GrowthRecordOut(
+            id=r.id,
+            scenario_id=r.scenario_id,
+            scenario_name=r.scenario_name,
+            difficulty_label=r.difficulty_label,
+            blindfold=r.blindfold,
+            ui_phase=r.ui_phase,
+            scores={
+                "empathy": r.score_empathy,
+                "question": r.score_question,
+                "advice": r.score_advice,
+                "ethics": r.score_ethics,
+                "process": r.score_process,
+                "risk": r.score_risk,
+            },
+            total=int(r.score_total or 0),
+            ai_used=r.ai_used,
+            duration_sec=int(r.duration_sec or 0),
+            score_source=r.score_source or "blend",
+            created_at=r.created_at,
+        )
+        for r in rows
+    ]
+
+    return GrowthOut(
+        total_sessions=len(rows),
+        total_turns=int(total_turns or 0),
+        avg_total=round(sum(totals) / len(totals), 1),
+        best_total=max(totals),
+        active_days=active_days,
+        streak_days=streak,
+        dimensions=dims,
+        records=records,
+        by_scenario=await _scenario_usage(session, [account.id], limit=20),
+        source_breakdown=dict(source_breakdown),
+    ).model_dump()

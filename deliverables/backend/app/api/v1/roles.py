@@ -48,6 +48,8 @@ teacher_router = APIRouter(prefix="/teacher", tags=["教师端"], dependencies=[
 admin_router = APIRouter(prefix="/admin", tags=["管理端"], dependencies=[AdminUser])
 # 学生/教师都能访问自己的点评，因此不预置角色依赖，逐接口用 CurrentUser 校验
 comment_router = APIRouter(prefix="/comments", tags=["点评"])
+# 学员本人可访问的数据（成长、个人统计），不预置角色依赖
+me_router = APIRouter(prefix="/me", tags=["我的数据"])
 
 
 # ── 教师端 ──────────────────────────────────────────────────
@@ -505,3 +507,15 @@ async def admin_audit_logs(
 @admin_router.get("/heatmap", summary="平台训练热力图")
 async def admin_heatmap(account: CurrentUser, session: SessionDep, weeks: int = 18):
     return ok(await analytics_service.admin_heatmap(session, weeks=weeks))
+
+
+# ── 学员成长中心（服务端口径）────────────────────────────────
+@me_router.get("/growth", summary="我的成长数据（服务端口径）")
+async def my_growth(account: CurrentUser, session: SessionDep):
+    """成长中心统一读这里，不再依赖浏览器 localStorage。
+
+    这样学生换设备、清缓存后成长数据不丢；也让教师端与学员端看到同一份口径。
+    """
+    if account.is_guest:
+        raise AppError.forbidden("访客无训练数据")
+    return ok(await analytics_service.growth(session, account))

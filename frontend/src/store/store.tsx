@@ -24,6 +24,8 @@ export interface Account {
 
 export interface TrainingRecord {
   id: string;
+  /** 归属账号 ID。早期记录没有这个字段，只能退化为按昵称匹配。 */
+  ownerId?: string;
   nickname: string;
   scriptId: string;
   scriptName: string;
@@ -315,6 +317,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const rec: TrainingRecord = {
       ...r,
       id: 'r' + Date.now().toString(36),
+      ownerId: account.id,
       nickname: account.nickname,
       createdAt: Date.now(),
     };
@@ -348,5 +351,10 @@ export function useStore(): Store {
 /** 当前账号的训练记录 */
 export function useMyRecords(): TrainingRecord[] {
   const { records, account } = useStore();
-  return account ? records.filter((r) => r.nickname === account.nickname) : [];
+  if (!account) return [];
+  // 归属以账号 ID 为准。早期记录没有 ownerId，只能退化为昵称匹配
+  //（两个同昵称账号会互相串数据，属于历史遗留，新记录不再出现）。
+  return records.filter((r) =>
+    r.ownerId ? r.ownerId === account.id : r.nickname === account.nickname,
+  );
 }

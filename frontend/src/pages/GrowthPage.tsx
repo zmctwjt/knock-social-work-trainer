@@ -10,6 +10,7 @@ import { useStore, useMyRecords, type TrainingRecord } from '../store/store.tsx'
 import { DIMENSIONS, DIMENSION_SHORT } from '../services/scoring.ts';
 import { SCENARIOS } from '../data/scenarios.ts';
 import { apiGet } from '../lib/authClient.ts';
+import type { TrainingRecord as StoreRecord } from '../store/store.tsx';
 
 /* ── 绘图常量（沿用原稿坐标）── */
 const RC = 160, RY = 150, RMAX = 100;
@@ -58,7 +59,60 @@ export default function GrowthPage() {
   const [detail, setDetail] = useState<TrainingRecord | null>(null);
   const [comments, setComments] = useState<TeacherCommentRow[]>([]);
   const { account } = useStore();
-  const recs = useMyRecords();
+  const localRecs = useMyRecords();
+
+  // 服务端为唯一口径：换设备/清缓存后成长数据不丢，与教师端一致。
+  // 拉不到时回落本地记录，并在页面上明确标注，避免用户误以为是完整数据。
+  const [serverRecs, setServerRecs] = useState<StoreRecord[] | null>(null);
+  const [dataNote, setDataNote] = useState('');
+  const [sourceBreak, setSourceBreak] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!account) return;
+    void apiGet<{
+      records: {
+        id: string; scenario_id: string; scenario_name: string;
+        difficulty_label: string; blindfold: boolean; ui_phase: number;
+        scores: Record<string, number>; total: number; ai_used: boolean;
+        duration_sec: number; score_source: string; created_at: string;
+      }[];
+      total_sessions: number;
+      source_breakdown: Record<string, number>;
+    }>('/api/v1/me/growth').then((r) => {
+      if (!r) {
+        setDataNote('当前显示本机记录（未能连接服务端）');
+        return;
+      }
+      setSourceBreak(r.source_breakdown ?? {});
+      const mapped: StoreRecord[] = (r.records ?? []).map((x) => ({
+        id: x.id,
+        ownerId: account.id,
+        nickname: account.nickname,
+        scriptId: x.scenario_id,
+        scriptName: x.scenario_name,
+        archetype: SCENARIOS.find((sc) => sc.id === x.scenario_id)?.archetype ?? '',
+        difficulty: x.difficulty_label,
+        blindfold: x.blindfold,
+        uiPhase: x.ui_phase,
+        scores: x.scores as StoreRecord['scores'],
+        total: x.total,
+        aiUsed: x.ai_used,
+        durationSec: x.duration_sec,
+        notes: [],
+        transcript: [],
+        createdAt: Date.parse(x.created_at),
+      }));
+      setServerRecs(mapped);
+      setDataNote(
+        `服务端记录 · 共 ${r.total_sessions} 次` +
+          (r.source_breakdown?.rule
+            ? `（其中 ${r.source_breakdown.rule} 次为纯规则评分，与含 AI 场次口径不同）`
+            : ''),
+      );
+    });
+  }, [account]);
+
+  const recs = serverRecs ?? localRecs;
 
   /* 老师点评：来自服务端，与本地训练记录相互独立。
      即使本地无记录（换设备/清缓存），也要能把老师的反馈展示出来。 */
@@ -179,6 +233,12 @@ export default function GrowthPage() {
           <div>
             <div className="k">成长中心 · Growth</div>
             <h2>还没有训练记录</h2>
+            {dataNote && (
+              <p style={{ fontFamily: 'var(--mono)', fontSize: '9.5px',
+                letterSpacing: '.1em', color: 'var(--ink-4)', marginTop: 6 }}>
+                {dataNote}
+              </p>
+            )}
           </div>
         </div>
         <div className="card" style={{ maxWidth: 560, padding: '34px 30px' }}>
@@ -216,6 +276,14 @@ export default function GrowthPage() {
         <div>
           <div className="k">成长中心 · Growth</div>
           <h2>{g.n} 次训练，你在哪条曲线上</h2>
+          {dataNote && (
+            <p style={{
+              fontFamily: 'var(--mono)', fontSize: '9.5px', letterSpacing: '.1em',
+              color: 'var(--ink-4)', margin: '6px 0 0',
+            }}>
+              {dataNote}
+            </p>
+          )}
         </div>
         <div className="n">
           {account?.nickname}<br />

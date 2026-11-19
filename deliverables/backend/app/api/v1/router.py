@@ -19,5 +19,6 @@ api_router.include_router(ai.router)
 api_router.include_router(roles.teacher_router)
 api_router.include_router(roles.admin_router)
 api_router.include_router(roles.comment_router)
+api_router.include_router(roles.me_router)
 
 __all__ = ["api_router"]

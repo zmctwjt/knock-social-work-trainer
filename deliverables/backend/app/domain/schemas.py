@@ -766,3 +766,42 @@ class CommentListOut(BaseModel):
     items: list[CommentOut] = Field(default_factory=list)
     total: int = 0
     unread: int = 0
+
+
+# ═══════════════════════════════════════════════════════════
+# 十八、成长中心（服务端口径）
+# ═══════════════════════════════════════════════════════════
+
+
+class GrowthRecordOut(BaseModel):
+    """成长中心用的一条训练记录（带六维明细）。"""
+
+    id: uuid.UUID
+    scenario_id: str
+    scenario_name: str
+    difficulty_label: str
+    blindfold: bool
+    ui_phase: int
+    scores: dict[str, int] = Field(default_factory=dict)
+    total: int = 0
+    ai_used: bool = False
+    duration_sec: int = 0
+    #: blend=规则+AI 混合，rule=纯规则。两种口径不可直接比较，
+    #: 因此统计里单独给出 source_breakdown。
+    score_source: str = "blend"
+    created_at: datetime
+
+
+class GrowthOut(BaseModel):
+    total_sessions: int = 0
+    total_turns: int = 0
+    avg_total: float = 0.0
+    best_total: int = 0
+    active_days: int = 0
+    streak_days: int = 0
+    # 与 analytics_service._dimension_averages 的返回类型保持一致
+    dimensions: list[DimensionAvgOut] = Field(default_factory=list)
+    records: list[GrowthRecordOut] = Field(default_factory=list)
+    by_scenario: list[ScenarioUsageOut] = Field(default_factory=list)
+    #: {"blend": N, "rule": M} —— 让界面能标注"本段含 AI / 纯规则"
+    source_breakdown: dict[str, int] = Field(default_factory=dict)
