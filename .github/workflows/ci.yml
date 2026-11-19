@@ -196,7 +196,7 @@ jobs:
         run: |
           set -e
           # audit_ai_degrade 自带无效密钥，不需要真实 key，适合 CI
-          for s in audit_permissions audit_extended_api audit_comments audit_ai_degrade audit_roles_ui; do
+          for s in audit_permissions audit_extended_api audit_comments audit_ai_degrade audit_scenario_ownership audit_roles_ui; do
             echo "::group::$s"
             python work/$s.py
             echo "::endgroup::"
@@ -205,7 +205,7 @@ jobs:
       - name: 浏览器审查（界面 / 角色 / 移动端 / 点评闭环）
         run: |
           set -e
-          for s in audit_training_flow audit_a11y audit_xss audit_role_landing audit_workbench_ui audit_mobile audit_knowledge audit_confirm audit_comment_ui; do
+          for s in audit_training_flow audit_a11y audit_scenario_ui audit_xss audit_role_landing audit_workbench_ui audit_mobile audit_knowledge audit_confirm audit_comment_ui; do
             echo "::group::$s"
             python work/$s.py
             echo "::endgroup::"

@@ -6,6 +6,7 @@
  */
 
 import type { Scenario } from '../types.ts';
+import { isServerScenario, lookupScenario } from './scenarioRegistry.ts';
 
 export const SCENARIOS: Scenario[] = [
   {
@@ -157,39 +158,30 @@ export const SCENARIOS: Scenario[] = [
 export function getScenario(id: string): Scenario | undefined {
   const hit = SCENARIOS.find((s) => s.id === id);
   if (hit) return hit;
-  // ★ 自定义角色（剧本编辑器产出，X- 前缀）：从设置里找
-  //   绝不静默回退到别的角色 —— 那会让新角色说着别人的台词
-  try {
-    const raw = localStorage.getItem('knock.settings');
-    if (!raw) return undefined;
-    const custom = (JSON.parse(raw).custom_scripts ?? []) as {
-      id: string; name: string; age: number; gender: string;
-      archetype: string; difficulty: number; sensitiveTag: string; brief: string;
-    }[];
-    const c = custom.find((x) => x.id === id);
-    if (!c) return undefined;
-    return {
-      ...c,
-      resistance: '',
-      initialEmotion: 45,
-      nodeCount: 0,
-      systemPrompt: '',
-    } as unknown as Scenario;
-  } catch {
-    return undefined;
-  }
+  // 教师/管理员在「案例管理」里自建的角色：查服务端注册表。
+  // 绝不静默回退到别的内置角色 —— 那会让新角色说着别人的台词。
+  const server = lookupScenario(id);
+  if (!server) return undefined;
+  return {
+    id: server.id,
+    name: server.name,
+    age: server.age,
+    gender: server.gender,
+    archetype: server.archetype,
+    difficulty: server.difficulty,
+    difficultyLabel: '',
+    resistance: '',
+    sensitiveTag: server.sensitive_tag ?? '无',
+    brief: server.brief,
+    initialEmotion: 45,
+    nodeCount: 0,
+    systemPrompt: '',
+  } as unknown as Scenario;
 }
 
 /** 判断 id 是否为已知剧本（内置或自定义）—— 路由守卫用 */
 export function isKnownScenario(id: string): boolean {
-  if (SCENARIOS.some((s) => s.id === id)) return true;
-  try {
-    const raw = localStorage.getItem('knock.settings');
-    const custom = raw ? (JSON.parse(raw).custom_scripts ?? []) : [];
-    return custom.some((x: { id: string }) => x.id === id);
-  } catch {
-    return false;
-  }
+  return SCENARIOS.some((s) => s.id === id) || isServerScenario(id);
 }
 
 /** 阻抗形态速查（讲解用） */

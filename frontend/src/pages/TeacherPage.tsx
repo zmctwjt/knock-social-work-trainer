@@ -4,9 +4,13 @@
  * 视觉与学生端（成长中心 P6）对齐：衬线大标题、等宽小字标签、
  * 纸色卡片、细分割线。样式用 `wb-*` 公共类而非内联，避免两端走形。
  *
- * 三个视图：班级总览 / 学员画像 / 训练趋势。
+ * 四个视图：班级总览 / 学员画像 / 训练趋势 / 案例管理。
  * 原「内容查阅」已下线：与学员端知识库同一份数据，只是少了筛选，
  * 教师导航里已有「知识库」入口，重复入口反而增加困惑。
+ *
+ * 「案例管理」让教师能自建服务对象（教案里的真实个案）。
+ * 内置案例是课程资产，只有管理员能改；教师建的只有本人与管理员能改，
+ * 权限判定在后端，前端只按 editable 标记决定是否显示编辑入口。
  * 权限以服务端为准——本页只是入口，真正的隔离在 require_roles 与
  * accounts.teacher_id 归属过滤上。
  */
@@ -15,6 +19,7 @@ import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store/store.tsx';
 import { apiGet, apiGetResult, apiSend, describeApiError } from '../lib/authClient.ts';
 import { useTabKeys } from '../lib/useTabKeys.ts';
+import { ScenarioManager } from '../components/ScenarioManager.tsx';
 import {
   AverageTrendChart,
   DimensionBarChart,
@@ -80,6 +85,7 @@ const TABS = [
   { key: '班级总览', no: '01' },
   { key: '学员画像', no: '02' },
   { key: '训练趋势', no: '03' },
+  { key: '案例管理', no: '04' },
 ] as const;
 type Tab = (typeof TABS)[number]['key'];
 
@@ -613,6 +619,15 @@ export default function TeacherPage() {
         )}
 
         </div>
+
+        {/* ── 04 案例管理 ── */}
+        {tab === '案例管理' && (
+          <ScenarioManager
+            notify={(m) => setMsg(m)}
+            onChanged={() => void load()}
+          />
+        )}
+
       </div>
     </div>
   );

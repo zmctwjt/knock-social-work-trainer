@@ -164,7 +164,7 @@ async def admin_set_active(
 async def admin_upsert_scenario(
     payload: ScenarioUpsertRequest, account: CurrentUser, session: SessionDep
 ):
-    out = await role_service.upsert_scenario(session, payload)
+    out = await role_service.upsert_scenario(session, payload, actor=account)
     await admin_audit_service.record(
         session,
         actor=account,
@@ -180,7 +180,7 @@ async def admin_upsert_scenario(
 async def admin_archive_scenario(
     scenario_id: str, account: CurrentUser, session: SessionDep
 ):
-    result = await role_service.archive_scenario(session, scenario_id)
+    result = await role_service.archive_scenario(session, scenario_id, actor=account)
     await admin_audit_service.record(
         session,
         actor=account,
@@ -189,6 +189,50 @@ async def admin_archive_scenario(
         target_id=scenario_id,
     )
     return ok(result.model_dump())
+
+
+@teacher_router.get("/scenarios", summary="案例列表（含可编辑标记）")
+async def teacher_list_scenarios(teacher: CurrentUser, session: SessionDep):
+    """教师看到的全部案例，`editable` 标明哪些能改。
+
+    内置案例 editable=false（课程资产，仅管理员可改），
+    自建案例只有创建者本人 editable=true。
+    """
+    items = await role_service.teacher_scenarios(session, teacher)
+    return ok({"items": [x.model_dump(mode="json") for x in items], "total": len(items)})
+
+
+@teacher_router.post("/scenarios", summary="新建或编辑自己的案例")
+async def teacher_upsert_scenario(
+    payload: ScenarioUpsertRequest, teacher: CurrentUser, session: SessionDep
+):
+    """教师建案例。归属自动记成当前账号；改内置或别人的案例会被 403 拒绝。"""
+    out = await role_service.upsert_scenario(session, payload, actor=teacher)
+    await admin_audit_service.record(
+        session,
+        actor=teacher,
+        action="scenario.upsert",
+        target_type="scenario",
+        target_id=payload.id,
+        payload={"name": payload.name, "by": "teacher"},
+    )
+    return ok(out.model_dump(mode="json"), message="案例已保存")
+
+
+@teacher_router.delete("/scenarios/{scenario_id}", summary="下架自己的案例")
+async def teacher_archive_scenario(
+    scenario_id: str, teacher: CurrentUser, session: SessionDep
+):
+    result = await role_service.archive_scenario(session, scenario_id, actor=teacher)
+    await admin_audit_service.record(
+        session,
+        actor=teacher,
+        action="scenario.archive",
+        target_type="scenario",
+        target_id=scenario_id,
+        payload={"by": "teacher"},
+    )
+    return ok(result.model_dump(mode="json"))
 
 
 @admin_router.post("/cards", summary="新建或编辑技巧卡")

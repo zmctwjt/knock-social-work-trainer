@@ -13,6 +13,7 @@ import { useStore } from '../store/store.tsx';
 import { apiGet, apiGetResult, apiSend, describeApiError } from '../lib/authClient.ts';
 import { useTabKeys } from '../lib/useTabKeys.ts';
 import { ConfirmDialog, type ConfirmOptions } from '../components/ConfirmDialog.tsx';
+import { ScenarioManager } from '../components/ScenarioManager.tsx';
 import {
   AverageTrendChart,
   DimensionBarChart,
@@ -137,10 +138,6 @@ export default function AdminPage() {
   const [selected, setSelected] = useState<string[]>([]);
   const [cardForm, setCardForm] = useState({
     id: '', title: '', category: '技巧', summary: '', content: '',
-  });
-  const [scForm, setScForm] = useState({
-    id: '', name: '', age: 40, gender: '女', archetype: '',
-    brief: '', system_prompt: '',
   });
 
   /** 统一提示：成功绿色、失败朱红，3 秒后自动消失 */
@@ -318,33 +315,6 @@ export default function AdminPage() {
       onConfirm: async () => {
         const r = await apiSend('DELETE', `/api/v1/admin/cards/${id}`);
         notify(r.ok ? `技巧卡 ${id} 已删除` : r.msg, r.ok);
-        if (r.ok) void load();
-      },
-    });
-  }
-
-  async function saveScenario() {
-    if (!scForm.id.trim() || !scForm.name.trim()) {
-      notify('案例需要 ID 与姓名', false);
-      return;
-    }
-    const r = await apiSend('POST', '/api/v1/admin/scenarios', scForm);
-    notify(r.ok ? `案例 ${scForm.id} 已保存` : r.msg, r.ok);
-    if (r.ok) {
-      setScForm({ id: '', name: '', age: 40, gender: '女', archetype: '',
-        brief: '', system_prompt: '' });
-      void load();
-    }
-  }
-
-  function archiveScenario(id: string) {
-    setConfirm({
-      title: '下架案例',
-      message: `案例 ${id} 将不再出现在选角列表，历史记录仍可查看。确定下架？`,
-      confirmLabel: '下架', danger: true,
-      onConfirm: async () => {
-        const r = await apiSend('DELETE', `/api/v1/admin/scenarios/${id}`);
-        notify(r.ok ? `案例 ${id} 已下架` : r.msg, r.ok);
         if (r.ok) void load();
       },
     });
@@ -789,51 +759,8 @@ export default function AdminPage() {
               ))}
             </div>
 
-            <div className="wb-panel">
-              <div className="wb-panel-h">
-                <span>案例</span>
-                <span className="hint">共 {scenarios.length} 个</span>
-              </div>
-              <div className="wb-form">
-                <input className="wb-input" style={{ width: 110 }} placeholder="ID（X-01）"
-                  value={scForm.id}
-                  onChange={(e) => setScForm({ ...scForm, id: e.target.value })} />
-                <input className="wb-input" style={{ width: 110 }} placeholder="姓名"
-                  value={scForm.name}
-                  onChange={(e) => setScForm({ ...scForm, name: e.target.value })} />
-                <input className="wb-input" style={{ width: 78 }} placeholder="年龄"
-                  type="number" value={scForm.age}
-                  onChange={(e) => setScForm({ ...scForm, age: Number(e.target.value) })} />
-                <select className="wb-input" value={scForm.gender}
-                  onChange={(e) => setScForm({ ...scForm, gender: e.target.value })}>
-                  <option value="女">女</option>
-                  <option value="男">男</option>
-                </select>
-                <input className="wb-input" style={{ width: 150 }} placeholder="类型（空巢老人）"
-                  value={scForm.archetype}
-                  onChange={(e) => setScForm({ ...scForm, archetype: e.target.value })} />
-                <button className="btn-primary" type="button" onClick={saveScenario}
-                  style={{ padding: '9px 18px' }}>
-                  保存
-                </button>
-              </div>
-              {scenarios.map((s) => (
-                <div key={s.id} className="wb-row">
-                  <span className="mono" style={{ width: 52 }}>{s.id}</span>
-                  <span className="name">{s.name}</span>
-                  <span className="mono">{s.archetype}</span>
-                  <span className="spacer" />
-                  <span className="tag">{s.difficulty_label}</span>
-                  <span className={`tag ${s.active ? 'ok' : 'warn'}`}>
-                    {s.active ? '在架' : '已下架'}
-                  </span>
-                  <button className="btn-ghost" type="button" onClick={() => archiveScenario(s.id)}
-                    style={{ padding: '5px 12px', fontSize: 12 }}>
-                    下架
-                  </button>
-                </div>
-              ))}
-            </div>
+            {/* 案例管理：与教师端共用同一组件，避免两端字段/提示漂移 */}
+            <ScenarioManager notify={notify} onChanged={() => void load()} />
           </>
         )}
 

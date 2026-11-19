@@ -42,14 +42,17 @@ from app.domain.schemas import (
     MessageOut,
     ScenarioUpsertRequest,
 )
+from app.services import content_service
 from app.services.account_service import _account_out
 
 
-def _scenario_out(row: Scenario) -> ScenarioOut:
-    """复用列表接口的序列化口径（含 difficulty_label），避免两处字段不一致。"""
+def _scenario_out(
+    row: Scenario, viewer: Account | None = None, owner_name: str | None = None
+) -> ScenarioOut:
+    """复用列表接口的序列化口径（含 difficulty_label 与归属标记），避免两处不一致。"""
     from app.api.v1.scenarios import _scenario_out as _impl
 
-    return _impl(row)
+    return _impl(row, viewer, owner_name)
 
 
 # ═══════════════════════════════════════════════════════════
@@ -342,32 +345,75 @@ def _scenario_payload(body: ScenarioUpsertRequest, current: Scenario | None) -> 
     return data
 
 
+def _assert_scenario_editable(row: Scenario, actor: Account) -> None:
+    """归属校验：内置案例只有管理员能动；自建案例只有创建者与管理员能动。
+
+    这条规则是教师端开放案例管理的前提——没有它，任何教师都能改掉
+    课程自带案例或别的教师建的内容。
+    """
+    if actor.role == Role.ADMIN.value:
+        return
+    if row.created_by is not None and row.created_by == actor.id:
+        return
+    if row.created_by is None:
+        raise AppError.forbidden("内置案例仅管理员可修改")
+    raise AppError.forbidden("只能修改自己创建的案例")
+
+
 async def upsert_scenario(
-    session: AsyncSession, body: ScenarioUpsertRequest
+    session: AsyncSession,
+    body: ScenarioUpsertRequest,
+    *,
+    actor: Account,
 ) -> ScenarioOut:
+    """新建或编辑案例。教师与管理员共用，权限差异由 `_assert_scenario_editable` 决定。"""
     current = await session.get(Scenario, body.id)
     data = _scenario_payload(body, current)
     if current is None:
+        # 新建：ID 不能与已有案例冲突（get 已覆盖，这里防并发下的竞态）
         data.pop("id", None)
-        current = Scenario(id=body.id, **data)
+        data["active"] = True
+        current = Scenario(id=body.id, created_by=actor.id, **data)
         session.add(current)
     else:
+        _assert_scenario_editable(current, actor)
+        # 保存即上架：否则编辑一个曾下架的案例会"保存成功但仍不可见"，
+        # 用户会以为是保存失败。
+        data["active"] = True
         for key, value in data.items():
             if key != "id":
                 setattr(current, key, value)
     await session.commit()
     await session.refresh(current)
-    return _scenario_out(current)
+    owners = await content_service.scenario_owner_names(session, [current])
+    return _scenario_out(current, actor, owners.get(current.created_by))
 
 
-async def archive_scenario(session: AsyncSession, scenario_id: str) -> MessageOut:
+async def archive_scenario(
+    session: AsyncSession, scenario_id: str, *, actor: Account
+) -> MessageOut:
     """下架而非物理删除：历史训练记录仍需外键指向它。"""
     current = await session.get(Scenario, scenario_id)
     if current is None:
         raise AppError.not_found("案例不存在")
+    _assert_scenario_editable(current, actor)
     current.active = False
     await session.commit()
     return MessageOut(message=f"案例 {scenario_id} 已下架")
+
+
+async def teacher_scenarios(session: AsyncSession, actor: Account) -> list[ScenarioOut]:
+    """教师端案例列表：全部案例都返回，用 `editable` 标记哪些能改。
+
+    返回全部而不是只返回自己的，是因为教师需要看到内置案例作参考，
+    也可能要在自建案例时对齐内置案例的写法。
+    """
+    rows = await content_service.list_scenarios(session, include_inactive=True)
+    owners = await content_service.scenario_owner_names(session, rows)
+    return [
+        _scenario_out(r, actor, owners.get(r.created_by))
+        for r in rows
+    ]
 
 
 async def upsert_card(session: AsyncSession, body: CardUpsertRequest) -> KnowledgeCardOut:

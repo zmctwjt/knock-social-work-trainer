@@ -156,6 +156,11 @@ class Scenario(Base, TimestampMixin):
     voice_high: Mapped[str] = mapped_column(Text, nullable=False, default="")
     forbidden: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    #: 为空表示内置案例（课程自带，仅管理员可改）；
+    #: 有值表示某位教师/管理员自建，仅创建者与管理员可改。
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(), nullable=True, index=True
+    )
 
     __table_args__ = (
         Index("ix_scenarios_active_difficulty", "active", "difficulty"),

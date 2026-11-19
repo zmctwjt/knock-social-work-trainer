@@ -11,6 +11,8 @@ import ErrorBoundary from './components/ErrorBoundary.tsx';
 import { StoreProvider, useStore } from './store/store.tsx';
 import { SCENARIOS } from './data/scenarios.ts';
 import { isKnownScenario } from './data/scenarios.ts';
+import { hydrateScenarios } from './data/scenarioRegistry.ts';
+import { apiGet } from './lib/authClient.ts';
 import { probeAi } from './lib/aiClient.ts';
 import { useAiStatus } from './hooks/useSession.ts';
 import { dbReady } from './lib/db.ts';
@@ -343,6 +345,14 @@ function NotFound() {
 }
 
 export default function App() {
+  // 启动即预拉案例列表：路由守卫 isKnownScenario 是同步的，
+  // 不预热的话教师自建案例在被直接访问时会被误判为未知剧本。
+  useEffect(() => {
+    void apiGet<{ items: { id: string }[] }>('/api/v1/scenarios').then((r) => {
+      if (r?.items?.length) hydrateScenarios(r.items as never);
+    });
+  }, []);
+
   return (
     <StoreProvider>
       <Routed />

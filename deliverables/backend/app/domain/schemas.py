@@ -119,6 +119,14 @@ class ScenarioOut(BaseModel):
     brief: str
     initial_emotion: int
     active: bool = True
+    #: 是否为教师/管理员自建（内置案例为 False）
+    custom: bool = False
+    #: 创建者账号 ID（内置案例为空）
+    created_by: uuid.UUID | None = None
+    #: 创建者昵称，界面展示"谁建的"
+    owner_name: str | None = None
+    #: 当前请求者能否编辑（内置案例仅管理员；自建仅创建者与管理员）
+    editable: bool = False
 
 
 class ScenarioListOut(BaseModel):

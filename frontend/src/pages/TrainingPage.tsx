@@ -599,7 +599,9 @@ export default function TrainingPage({ scenarioId, onExit }: {
                     type="button"
                     onClick={() => setAiMode(m.key)}
                     aria-pressed={on}
-                    title={degraded && on ? '该模式需要 AI 服务，当前未连通，已自动回落' : m.hint}
+                    title={degraded && on
+                      ? '该模式需要 AI 服务，当前未连通，已自动回落'
+                      : m.hint.replace('{MODEL}', ai.model || 'AI 模型')}
                     style={{
                       flex: '1 1 auto',
                       padding: '6px 8px',
@@ -621,7 +623,8 @@ export default function TrainingPage({ scenarioId, onExit }: {
               })}
             </div>
             <p style={{ fontSize: 11.5, lineHeight: 1.7, marginTop: 8, color: 'var(--ink-3)' }}>
-              {AI_MODES.find((m) => m.key === state.aiMode)?.hint}
+              {(AI_MODES.find((m) => m.key === state.aiMode)?.hint ?? '')
+                .replace('{MODEL}', ai.model || 'AI 模型')}
             </p>
             <p style={{
               fontSize: 11.5, lineHeight: 1.7,

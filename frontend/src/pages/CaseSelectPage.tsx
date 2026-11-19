@@ -2,11 +2,25 @@
  * 02 服务对象选择 —— 12 位角色
  * 结构与 class 名来自 docs/预览/叩门-设计示例.html
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SCENARIOS } from '../data/scenarios.ts';
 import { useStore } from '../store/store.tsx';
 import { loadSettingsLocal, saveSettingsLocal, type UserSettings } from '../lib/db.ts';
+import { apiGet } from '../lib/authClient.ts';
+import { hydrateScenarios } from '../data/scenarioRegistry.ts';
+
+interface CaseRow {
+  id: string;
+  name: string;
+  age: number;
+  gender: string;
+  archetype: string;
+  difficulty: number;
+  sensitive_tag: string | null;
+  brief: string;
+  custom: boolean;
+}
 
 const DISK = ['#2F5D50', '#7A5C42', '#6B6A72', '#9A7430', '#22463C', '#5A5248',
   '#6B5B7A', '#3E5C6B', '#6B4A3E', '#4A5B3E', '#5C4A6B', '#3E4A5C'];
@@ -28,14 +42,36 @@ export default function CaseSelectPage() {
   const [picked, setPicked] = useState<string | null>(null);
 
 
-  /** 内置 12 位服务对象。
-      自定义剧本功能已下线：编辑器无入口，创建链路不通，
-      留着只会让选角页展示一份永远为空的数据。 */
-  const all = SCENARIOS.map((x) => ({
-    id: x.id, name: x.name, age: x.age, gender: x.gender,
-    archetype: x.archetype, difficulty: x.difficulty,
-    sensitiveTag: x.sensitiveTag, brief: x.brief, custom: false,
-  }));
+  /** 服务对象列表。
+   *
+   * 数据以**服务端为准**：教师/管理员可以在「案例管理」里新建案例，
+   * 学生必须能看到，所以这里拉 `/api/v1/scenarios`。
+   * 静态 SCENARIOS 保底——接口不可用时页面仍然能用（与知识库同一套思路）。
+   */
+  const [serverCases, setServerCases] = useState<CaseRow[] | null>(null);
+
+  useEffect(() => {
+    void apiGet<{ items: CaseRow[] }>('/api/v1/scenarios').then((r) => {
+      if (r?.items?.length) {
+        // 同时写注册表：路由守卫与训练页用同步查表
+        hydrateScenarios(r.items);
+        setServerCases(r.items);
+      }
+    });
+  }, []);
+
+  const all = serverCases
+    ? serverCases.map((x) => ({
+        id: x.id, name: x.name, age: x.age, gender: x.gender,
+        archetype: x.archetype, difficulty: x.difficulty,
+        sensitiveTag: x.sensitive_tag ?? '无', brief: x.brief,
+        custom: x.custom,
+      }))
+    : SCENARIOS.map((x) => ({
+        id: x.id, name: x.name, age: x.age, gender: x.gender,
+        archetype: x.archetype, difficulty: x.difficulty,
+        sensitiveTag: x.sensitiveTag, brief: x.brief, custom: false,
+      }));
 
   const sel = all.find((x) => x.id === picked);
 

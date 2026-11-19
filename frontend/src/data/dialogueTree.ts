@@ -604,15 +604,9 @@ export function getTree(scenarioId: string): DialogueNode[] {
   // ★ 自定义角色（X- 前缀）：用编辑器保存的台词树
   //   没有的话按阻抗形态现场生成一棵 —— 绝不能返回空数组，
   //   否则 generateReply 里 tree[tree.length-1] 会崩，白屏。
-  try {
-    const raw = localStorage.getItem('knock.settings');
-    const custom = raw ? (JSON.parse(raw).custom_scripts ?? []) : [];
-    const c = custom.find((x: { id: string }) => x.id === scenarioId);
-    if (c) {
-      if (Array.isArray(c.tree) && c.tree.length > 0) return c.tree as DialogueNode[];
-      return buildScriptTree(c.resistance ?? 'polite-avoidance');
-    }
-  } catch { /* 落到下面 */ }
+  // 教师自建案例没有预置台词树：直接走下面的通用兜底。
+  // AI 开启时台词由模型按 system_prompt 生成；未开 AI 时用兜底树保证
+  // 对话能推进（绝不返回空数组，否则渲染会崩）。
 
   // 最后兜底：任何未知 id 都给一棵通用树，绝不返回空
   console.warn('[叩门] 未找到台词树：' + scenarioId + '，已用通用兜底');

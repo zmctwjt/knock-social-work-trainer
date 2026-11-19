@@ -9,11 +9,13 @@
 
 from __future__ import annotations
 
+import uuid
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AppError
-from app.domain.models import KnowledgeCard, Scenario
+from app.domain.models import Account, KnowledgeCard, Scenario
 
 # ═══════════════════════════════════════════════════════════
 # 一、12 个案例（角色卡）
@@ -311,3 +313,16 @@ async def list_cards(
             | KnowledgeCard.content.like(like)
         )
     return list((await session.execute(stmt)).scalars().all())
+
+
+async def scenario_owner_names(
+    session: AsyncSession, rows: list[Scenario]
+) -> dict[uuid.UUID, str]:
+    """批量取创建者昵称，避免列表接口 N+1 查询。"""
+    ids = {r.created_by for r in rows if r.created_by}
+    if not ids:
+        return {}
+    result = await session.execute(
+        select(Account.id, Account.nickname).where(Account.id.in_(ids))
+    )
+    return {row[0]: row[1] for row in result.all()}
