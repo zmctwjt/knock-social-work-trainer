@@ -42,6 +42,8 @@ def main() -> int:
         "RATE_LIMIT_ENABLED": "false",
     })
 
+    # logs 目录在 CI 里不存在（被 gitignore），先确保存在
+    _LOG.parent.mkdir(parents=True, exist_ok=True)
     print(f"启动降级测试实例（端口 {PORT}，无效密钥）…")
     proc = subprocess.Popen(
         [str(PYTHON), "-m", "uvicorn", "app.main:app",
