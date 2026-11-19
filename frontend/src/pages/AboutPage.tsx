@@ -25,7 +25,8 @@ const ETHICS_DISCLAIMERS = ETHICS.length - ETHICS_CODES; // 工具边界声明
 const DIMENSION_COUNT = DIMENSIONS.length; // 评分维度
 
 /* AI 侧如实标注：模型名与服务端每日上限（server/.env 的 GLM_DAILY_CAP） */
-const AI_MODEL = 'GLM-4.7-Flash';
+// 模型可配置（GLM_MODEL / GLM_FALLBACK_MODELS），页面不写死具体型号
+const AI_MODEL = '智谱 GLM Flash 系列';
 const AI_DAILY_CAP = 800;
 
 export default function AboutPage() {

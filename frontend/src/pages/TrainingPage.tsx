@@ -4,7 +4,7 @@
  * 三条 AI 模式在这一页可切换，答辩时能现场对比：
  *   规则模式   —— 零调用、零延迟
  *   混合模式   —— 台词走预置库，AI 只做长尾意图 + 阶段评分 + 复盘
- *   全 AI 模式 —— 台词也由 GLM-4.7-Flash 按人设实时生成
+ *   全 AI 模式 —— 台词也由当前配置的模型按人设实时生成
  *
  * 危机级内容由本地规则拦截，不进模型、不计分，并要求用户确认后才恢复输入。
  */
@@ -37,7 +37,8 @@ const QUICK_BY_DIFF: Record<Difficulty, string[]> = {
 const AI_MODES: { key: AiMode; label: string; hint: string }[] = [
   { key: 'rule', label: '规则模式', hint: '零调用、零延迟；全部判定来自本地 162 条规则' },
   { key: 'hybrid', label: '混合模式', hint: '台词走预置库，AI 负责长尾意图补判与阶段六维评分' },
-  { key: 'ai', label: '全 AI 模式', hint: '服务对象台词由 GLM-4.7-Flash 按人设实时生成' },
+  // hint 在渲染时用实际模型名替换，避免换模型后文案与实际不符
+  { key: 'ai', label: '全 AI 模式', hint: '服务对象台词由 {MODEL} 按人设实时生成' },
 ];
 
 function gradeOf(v: number) {

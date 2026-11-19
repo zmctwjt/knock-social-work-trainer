@@ -402,6 +402,8 @@ export async function generateDebrief(args: {
     improvement: p.improvement,
     nextStep: p.nextStep,
     source: 'ai',
+    // 透传实际模型名，复盘页显示"由哪个模型生成"而不是写死型号
+    model: r.data.model || undefined,
   };
 }
 

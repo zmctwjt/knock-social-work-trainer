@@ -244,6 +244,8 @@ export interface DebriefReport {
   nextStep: string;
   /** 由 AI 生成还是模板降级 */
   source: 'ai' | 'template';
+  /** 实际生成该复盘的模型名（降级时为空） */
+  model?: string;
 }
 
 export interface CrisisCardContent {

@@ -28,7 +28,12 @@ async def test_readyz_reports_each_dependency(client):
     assert data["ok"] is True
     names = {item["name"] for item in data["checks"]}
     assert {"database", "cache"} <= names
-    assert data["model_chain"][0] == "glm-4.7-flash"
+    # 不写死具体型号：模型链是可配置的（GLM_MODEL / GLM_FALLBACK_MODELS），
+    # 断言"链首等于当前配置"才不会在换模型时误报。
+    from app.core.config import get_settings
+
+    assert data["model_chain"][0] == get_settings().glm_model
+    assert len(data["model_chain"]) >= 1
 
 
 async def test_metrics_exposes_prometheus_text(client):

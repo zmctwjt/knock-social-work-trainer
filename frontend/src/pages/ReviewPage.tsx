@@ -115,12 +115,12 @@ export default function ReviewPage() {
       <div>需改进 <b>{bad.length} 条</b></div>
     </div>
 
-    {/* ★ AI 复盘（GLM-4.7-Flash）：提交阶段时生成，失败则已回落模板 */}
+    {/* ★ AI 复盘：提交阶段时生成，失败则已回落模板（模型名取实际返回值） */}
     {debriefBlocks.length > 0 && (
       <div className="card" style={{ marginBottom: 18 }}>
         <div className="h">
           <span>督导复盘</span>
-          <b>{debrief?.source === 'ai' ? 'GLM-4.7-Flash 生成' : '规则模板（AI 未启用）'}</b>
+          <b>{debrief?.source === 'ai' ? `${debrief?.model || 'AI'} 生成` : '规则模板（AI 未启用）'}</b>
         </div>
         {debriefBlocks.map(([label, text]) => (
           <div key={label} style={{ marginTop: 12 }}>

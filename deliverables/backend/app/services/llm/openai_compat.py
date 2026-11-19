@@ -7,6 +7,7 @@ JSON 输出用 `response_format={"type":"json_object"}`。
 
 from __future__ import annotations
 
+import re
 import time
 from typing import Any
 
@@ -17,6 +18,21 @@ from app.services.llm.base import (
     LLMResponse,
     ProviderError,
 )
+
+
+#: 成对的思维链标签。实测 `glm-z1-flash` 即使传 thinking=disabled
+#: 也会把思考过程混进 content（其它两个模型能正常关闭）。
+#: 不剥离的话，服务对象会把内心独白直接说给学生听。
+_THINK_PAIR = re.compile(r"<think\b[^>]*>.*?</think\s*>", re.DOTALL | re.IGNORECASE)
+#: 未闭合的思维链（被 max_tokens 截断的情况）：从 <think 起到结尾全部丢弃
+_THINK_OPEN = re.compile(r"<think\b[^>]*>.*$", re.DOTALL | re.IGNORECASE)
+
+
+def strip_thinking(text: str) -> str:
+    """去掉模型输出里的思维链标记，只留正文。"""
+    cleaned = _THINK_PAIR.sub("", text)
+    cleaned = _THINK_OPEN.sub("", cleaned)
+    return cleaned.strip()
 
 
 class OpenAICompatProvider:
@@ -143,9 +159,26 @@ class OpenAICompatProvider:
         first = choices[0] if isinstance(choices[0], dict) else {}
         message = first.get("message") or {}
         content = message.get("content")
-        if isinstance(content, str):
-            return content
-        # 少数兼容实现把内容放在 delta / text 字段
-        if isinstance(first.get("text"), str):
-            return str(first["text"])
-        raise ProviderError.bad_payload("message.content 不是字符串")
+        # 空串也算"没有内容"，要允许回落到 text 字段再判定失败
+        raw = content if isinstance(content, str) and content.strip() else None
+        alt = first.get("text")
+        if raw is None and isinstance(alt, str) and alt.strip():
+            # 少数兼容实现把内容放在 text 字段
+            raw = alt
+        if raw is None:
+            reasoning = message.get("reasoning_content") or ""
+            raise ProviderError.bad_payload(
+                f"模型未返回正文（reasoning {len(reasoning)} 字）"
+            )
+
+        text = strip_thinking(raw)
+        if not text:
+            # 不能把空串当成功：推理模型可能把 token 全花在 reasoning_content
+            # 上（实测 glm-4.7-flash 未关闭 thinking 时就是 content=""），
+            # 空内容交给上层会变成"服务对象一言不发"这种不可解释的现象。
+            # 抛错让路由层切下一个模型或降级到规则。
+            reasoning = message.get("reasoning_content") or ""
+            raise ProviderError.bad_payload(
+                f"模型只输出了思考过程，正文为空（reasoning {len(reasoning)} 字）"
+            )
+        return text

@@ -353,6 +353,11 @@ def _fallback_reply(emotion: int, turn_index: int, scenario_id: str = "") -> str
     return lines[turn_index % len(lines)]
 
 
+#: 公开别名：AI 链路降级时也要给"真正的台词"，
+#: 而 voice_for() 给的是性格描述（"愿意聊家常…"），学生没法接话。
+fallback_reply = _fallback_reply
+
+
 def _apply_rule_score(turn: Turn, intent: Intent) -> None:
     effect = effects_for_intent(intent)
     dimension = INTENT_TO_DIMENSION.get(intent)

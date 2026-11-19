@@ -1,8 +1,16 @@
 """智谱 GLM 供应商（OpenAI 兼容端点 + thinking disabled）。
 
-模型链与旧实现一致：glm-4.7-flash → glm-4.5-flash → glm-4-flash。
-`thinking: {"type": "disabled"}` 是必须继承的线上参数：开启思考链会把
-单次延迟推高到 10s 以上，而四条链路的输出都不需要推理过程。
+模型链按**实测延迟**排序，不是按版本新旧：
+glm-4-flash-250414（中位 865ms）→ glm-z1-flash（2.1s）→ glm-4.7-flash（21.3s）。
+
+glm-4.7-flash 虽然版本更新，但它是推理模型：即使传
+`thinking: {"type": "disabled"}`，实测冷调用仍要 10–32 秒，
+且并发时会返回 429。面谈训练是实时对话，等 20 秒才出一句
+服务对象台词不可接受，因此排在最后作为兜底而非主选。
+
+`thinking: {"type": "disabled"}` 仍必须传：对 glm-4.7-flash 有效
+（关闭后正文正常），对 glm-z1-flash 无效（它会把 `<think>` 混进
+正文，由 openai_compat.strip_thinking 负责剥离）。
 """
 
 from __future__ import annotations

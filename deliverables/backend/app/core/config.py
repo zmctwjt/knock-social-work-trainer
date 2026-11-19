@@ -60,8 +60,11 @@ class Settings(BaseSettings):
     # ── AI 网关（与旧 Node 版 GLM_* 同名同义）────────────
     glm_api_key: str = ""
     glm_base_url: str = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
-    glm_model: str = "glm-4.7-flash"
-    glm_fallback_models: str = "glm-4.5-flash,glm-4-flash"
+    # 允许的模型限定为三个，且按**实测冷调用延迟**排序：
+    # glm-4-flash-250414 约 0.9s / glm-z1-flash 约 2.1s / glm-4.7-flash 约 21s。
+    # glm-4.7-flash 虽是推理模型但太慢（且并发时 429），只作最后兜底。
+    glm_model: str = "glm-4-flash-250414"
+    glm_fallback_models: str = "glm-z1-flash,glm-4.7-flash"
     glm_timeout_ms: int = 45_000
     glm_daily_cap: int = 800
     glm_rpm_per_ip: int = 20

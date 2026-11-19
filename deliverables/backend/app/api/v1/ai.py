@@ -160,9 +160,16 @@ async def play_persona(payload: PersonaRequest, session: SessionDep, gateway: Ga
     )
     text, meta = await gateway.persona(ctx)
 
-    # 铁律二：AI 失败也必须给页面一句可读的台词（用情绪档兜底）
+    # 铁律二：AI 失败也必须给页面一句**能接话的台词**。
+    # 原来回落 voice_for()，那是性格描述（"愿意聊家常，会主动提起老伴"），
+    # 学生看到这个没法回应；改用台词池（优先管理端维护的，其次基线常量）。
+    # 多数部署没有密钥，这条降级路径才是常态体验。
     if text is None:
-        return ok(PersonaOut(text=voice, meta=_meta(meta)))
+        from app.services.session_service import fallback_reply
+
+        turn_index = len(payload.history) or len(payload.said_lines)
+        line = fallback_reply(emotion, turn_index, payload.scenario_id)
+        return ok(PersonaOut(text=line, meta=_meta(meta)))
     return ok(PersonaOut(text=text, meta=_meta(meta)))
 
 
