@@ -320,7 +320,6 @@ export interface UserSettings {
   ai_mode: 'rule' | 'hybrid' | 'ai';
   show_basis: boolean;
   auto_settle: boolean;
-  custom_scripts: unknown[];
 }
 
 const DEFAULT_SETTINGS: UserSettings = {
@@ -330,7 +329,6 @@ const DEFAULT_SETTINGS: UserSettings = {
   ai_mode: 'ai',
   show_basis: true,
   auto_settle: true,
-  custom_scripts: [],
 };
 
 const K_SET = 'knock.settings';
@@ -379,7 +377,6 @@ export async function loadSettings(nickname: string): Promise<UserSettings> {
     ai_mode: data.ai_mode ?? 'hybrid',
     show_basis: data.show_basis ?? true,
     auto_settle: data.auto_settle ?? true,
-    custom_scripts: data.custom_scripts ?? [],
   };
   localStorage.setItem(K_SET, JSON.stringify(next));
   return next;

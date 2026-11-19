@@ -38,8 +38,11 @@ COPY --from=builder /opt/venv /opt/venv
 COPY alembic.ini ./
 COPY alembic ./alembic
 COPY app ./app
+# 启动入口：先 alembic upgrade head 再起服务，避免连上空库
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
-RUN chown -R knock:knock /app
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
+    && chown -R knock:knock /app
 USER knock
 
 EXPOSE 8000
@@ -48,6 +51,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD curl -fsS "http://127.0.0.1:${PORT}/healthz" || exit 1
 
 # gunicorn 只用于 Linux 容器；Windows 本机请直接用 uvicorn（见 README）
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["gunicorn", "app.main:app", \
      "-k", "uvicorn.workers.UvicornWorker", \
      "-w", "4", \

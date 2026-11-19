@@ -81,6 +81,10 @@ spec:
             - secretRef:
                 name: knock-api-secret
           env:
+            # 迁移由 migrate-job.yaml 统一执行；3 个副本各自跑会互相争抢
+            # （Alembic 没有分布式锁），所以这里显式关掉入口脚本的迁移
+            - name: RUN_MIGRATIONS
+              value: "false"
             - name: POD_NAME
               valueFrom:
                 fieldRef:
